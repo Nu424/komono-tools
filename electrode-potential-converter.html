@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>電極電位変換ツール</title>
+  <meta name="description" content="RHE↔各種基準電極電位変換ツール（pH/RT/F反映）" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.28/dist/katex.min.css"
+    integrity="sha384-Wsr4Nh3yrvMf2KCebJchRJoVo1gTU6kcP05uRSh5NV3sj9+a8IomuJoQzf3sMq4T" crossorigin="anonymous">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.28/dist/katex.min.js"
+    integrity="sha384-+W9OcrYK2/bD7BmUAk+xeFAyKp0QjyRQUCxeU31dfyTt/FrPsUgaBTLLkVf33qWt"
+    crossorigin="anonymous"></script>
+  <script defer src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script defer src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script defer src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+</head>
+
+<body class="min-h-screen bg-slate-950 text-slate-100">
+  <div id="root" class="h-[100svh] w-screen bg-slate-950 text-slate-100"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    const REFERENCE_ELECTRODES = [
+      {
+        id: "ag_agcl_sat",
+        label: "Ag/AgCl（飽和KCl）",
+        offset: 0.197,
+        description: "SHEに対して +0.197 V",
+      },
+      {
+        id: "ag_agcl_3m5",
+        label: "Ag/AgCl（3.5 M KCl）",
+        offset: 0.210,
+        description: "SHEに対して +0.210 V",
+      },
+      {
+        id: "sce",
+        label: "SCE（飽和KCl）",
+        offset: 0.241,
+        description: "SHEに対して +0.241 V",
+      },
+      {
+        id: "hg_hg2cl2",
+        label: "Hg/Hg₂Cl₂（飽和KCl）",
+        offset: 0.268,
+        description: "SHEに対して +0.268 V",
+      },
+      {
+        id: "hg_hgo",
+        label: "Hg/HgO（1 M NaOH）",
+        offset: 0.140,
+        description: "SHEに対して +0.140 V",
+      },
+      {
+        id: "she",
+        label: "SHE（標準水素電極）",
+        offset: 0.0,
+        description: "基準のため、オフセットなし",
+      },
+    ];
+
+    const STORAGE_KEY = "electrodeConversionToolState";
+
+    function KaTeXFormula({ formula, displayMode = false }) {
+      const containerRef = useRef(null);
+      useEffect(() => {
+        if (!containerRef.current) return;
+        try {
+          katex.render(formula, containerRef.current, {
+            throwOnError: false,
+            displayMode,
+          });
+        } catch (error) {
+          containerRef.current.textContent = formula;
+        }
+      }, [formula, displayMode]);
+      return <div ref={containerRef} className="text-lg leading-relaxed" />;
+    }
+
+    function Modal({ onClose, children }) {
+      useEffect(() => {
+        const handleKey = (event) => {
+          if (event.key === "Escape") {
+            onClose();
+          }
+        };
+        window.addEventListener("keydown", handleKey);
+        return () => window.removeEventListener("keydown", handleKey);
+      }, [onClose]);
+
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={onClose}
+          ></div>
+          <div className="relative z-50 w-full max-w-2xl rounded-3xl border border-white/10 bg-slate-900/90 p-6 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-semibold text-slate-100">
+                計算のしくみ
+              </h3>
+              <button
+                onClick={onClose}
+                className="rounded-full border border-white/30 px-3 py-1 text-sm text-slate-200 transition hover:border-white hover:text-white"
+              >
+                閉じる
+              </button>
+            </div>
+            <p className="mt-3 text-sm text-slate-300">
+              RHE（Reversible Hydrogen Electrode）は、SHE（Standard
+              Hydrogen Electrode）にpH依存の電位シフトを加えたものです。基準電極（Ag/AgCl
+              など）との変換には、SHEとのオフセットとpH補正を組み合わせます。
+            </p>
+            <div className="mt-4 rounded-2xl bg-slate-800/70 p-4 text-sm text-slate-100">
+              <p className="mb-2 font-medium text-slate-200">
+                基本式（RHE → 目的電極）：
+              </p>
+              <KaTeXFormula
+                formula={
+                  "E_{\\text{ref}} = E_{\\text{RHE}} - \\left(E_{\\text{ref vs SHE}} + \\frac{RT}{F}\\cdot\\text{pH}\\right)"
+                }
+              />
+              <p className="mt-3 mb-2 font-medium text-slate-200">
+                逆変換（目的電極 → RHE）：
+              </p>
+              <KaTeXFormula
+                formula={
+                  "E_{\\text{RHE}} = E_{\\text{ref}} + \\left(E_{\\text{ref vs SHE}} + \\frac{RT}{F}\\cdot\\text{pH}\\right)"
+                }
+              />
+            </div>
+            <p className="mt-4 text-sm text-slate-300">
+              本ツールでは、選んだ電極のSHEに対するオフセット（例：Ag/AgCl
+              では +0.197 V）と、pHの影響を加減算して、RHE基準と目的電極基準間で即時に電位変換を行います。
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    function App() {
+      const defaultState = {
+        direction: "rheToRef",
+        ph: "7.0",
+        rtOverF: "0.0591",
+        electrodeId: "ag_agcl_sat",
+        potential1: "0.0",
+        potential2: "1.2",
+      };
+
+      const [state, setState] = useState(() => {
+        try {
+          const stored = localStorage.getItem(STORAGE_KEY);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            return { ...defaultState, ...parsed };
+          }
+        } catch (error) {
+          console.error("localStorage読み込みエラー", error);
+        }
+        return defaultState;
+      });
+
+      const [isModalOpen, setModalOpen] = useState(false);
+
+      useEffect(() => {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (error) {
+          console.error("localStorage書き込みエラー", error);
+        }
+      }, [state]);
+
+      const selectedElectrode =
+        REFERENCE_ELECTRODES.find(
+          (item) => item.id === state.electrodeId
+        ) || REFERENCE_ELECTRODES[0];
+      const offset = selectedElectrode.offset;
+
+      const parseNumber = (value) => {
+        const parsed = parseFloat(value);
+        return Number.isFinite(parsed) ? parsed : null;
+      };
+
+      const phValue = parseNumber(state.ph);
+      const rtValue = parseNumber(state.rtOverF);
+      const offsetTerm =
+        phValue !== null && rtValue !== null ? rtValue * phValue : null;
+      const adjustment =
+        offset !== null && offsetTerm !== null
+          ? offset + offsetTerm
+          : null;
+
+      const convertPotential = (value) => {
+        const numeric = parseNumber(value);
+        if (numeric === null || adjustment === null) return null;
+        if (state.direction === "rheToRef") {
+          return numeric - adjustment;
+        }
+        return numeric + adjustment;
+      };
+
+      const converted1 = convertPotential(state.potential1);
+      const converted2 = convertPotential(state.potential2);
+      const validConverted = [converted1, converted2].filter(
+        (value) => value !== null
+      );
+
+      const rangeMin =
+        validConverted.length > 0 ? Math.min(...validConverted) : null;
+      const rangeMax =
+        validConverted.length > 0 ? Math.max(...validConverted) : null;
+      const rangeSize =
+        rangeMin !== null && rangeMax !== null
+          ? Math.abs(rangeMax - rangeMin)
+          : null;
+
+      const formatValue = (value) =>
+        value === null ? "―" : `${value.toFixed(3)} V`;
+
+      const directionLabel =
+        state.direction === "rheToRef"
+          ? "RHE → 選択電極"
+          : "選択電極 → RHE";
+
+      const formulaString =
+        state.direction === "rheToRef"
+          ? `E_{\\text{ref}} = E_{\\text{RHE}} - \\left(${offset.toFixed(
+            3
+          )} + ${state.rtOverF} \\cdot \\text{pH}\\right)`
+          : `E_{\\text{RHE}} = E_{\\text{ref}} + \\left(${offset.toFixed(
+            3
+          )} + ${state.rtOverF} \\cdot \\text{pH}\\right)`;
+
+      return (
+        <div className="h-full w-full">
+          <div className="relative mx-auto flex h-full max-w-4xl flex-col justify-between">
+            <header className="w-full px-2 pt-4">
+              <div className="rounded-3xl border border-white/10 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900/70 p-5 shadow-2xl shadow-black/40">
+                <p className="text-sm uppercase tracking-[0.4em] text-emerald-300/80">
+                  電極電位変換ツール
+                </p>
+                <h1 className="mt-2 text-2xl font-bold text-white">
+                  RHE ↔ 各種基準電極
+                </h1>
+                <p className="mt-1 text-sm text-slate-300">
+                  pHとRT/Fを反映して、入力した電位を即座に変換します。
+                  CVレンジの確認にも◎
+                </p>
+              </div>
+            </header>
+
+            <main className="flex-1 px-2 pb-4 pt-3">
+              <div className="flex h-full flex-col gap-4">
+                <section className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-xl shadow-black/40 backdrop-blur">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-1.5 text-sm text-slate-200">
+                      <label className="font-medium text-slate-100">
+                        変換方向
+                      </label>
+                      <select
+                        value={state.direction}
+                        onChange={(event) =>
+                          setState((prev) => ({
+                            ...prev,
+                            direction: event.target.value,
+                          }))
+                        }
+                        className="w-full rounded-2xl border border-white/20 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-400"
+                      >
+                        <option value="rheToRef">
+                          RHE → 選択電極
+                        </option>
+                        <option value="refToRhe">
+                          選択電極 → RHE
+                        </option>
+                      </select>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="flex flex-col gap-1.5 text-sm text-slate-200">
+                        <label className="font-medium text-slate-100">
+                          溶液のpH
+                        </label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          max="14"
+                          value={state.ph}
+                          onChange={(event) =>
+                            setState((prev) => ({
+                              ...prev,
+                              ph: event.target.value,
+                            }))
+                          }
+                          className="w-full rounded-2xl border border-white/20 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-400"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5 text-sm text-slate-200">
+                        <label className="font-medium text-slate-100">
+                          RT/F（V）
+                        </label>
+                        <input
+                          type="number"
+                          step="0.0001"
+                          min="0"
+                          value={state.rtOverF}
+                          onChange={(event) =>
+                            setState((prev) => ({
+                              ...prev,
+                              rtOverF: event.target.value,
+                            }))
+                          }
+                          className="w-full rounded-2xl border border-white/20 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-400"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5 text-sm text-slate-200">
+                      <label className="font-medium text-slate-100">
+                        使用電極
+                      </label>
+                      <select
+                        value={state.electrodeId}
+                        onChange={(event) =>
+                          setState((prev) => ({
+                            ...prev,
+                            electrodeId: event.target.value,
+                          }))
+                        }
+                        className="w-full rounded-2xl border border-white/20 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-400"
+                      >
+                        {REFERENCE_ELECTRODES.map((electrode) => (
+                          <option key={electrode.id} value={electrode.id}>
+                            {electrode.label}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-slate-400">
+                        {selectedElectrode.description}
+                      </p>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="flex flex-col gap-1.5 text-sm text-slate-200">
+                        <label className="font-medium text-slate-100">
+                          電位①（V）
+                        </label>
+                        <input
+                          type="number"
+                          step="0.001"
+                          value={state.potential1}
+                          onChange={(event) =>
+                            setState((prev) => ({
+                              ...prev,
+                              potential1: event.target.value,
+                            }))
+                          }
+                          className="w-full rounded-2xl border border-white/20 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-400"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5 text-sm text-slate-200">
+                        <label className="font-medium text-slate-100">
+                          電位②（V）
+                        </label>
+                        <input
+                          type="number"
+                          step="0.001"
+                          value={state.potential2}
+                          onChange={(event) =>
+                            setState((prev) => ({
+                              ...prev,
+                              potential2: event.target.value,
+                            }))
+                          }
+                          className="w-full rounded-2xl border border-white/20 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-400"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="rounded-3xl border border-white/10 bg-slate-900/70 p-4 shadow-2xl">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.4em] text-slate-300">
+                        {directionLabel}
+                      </p>
+                      <p className="text-sm text-slate-400">
+                        オフセット：{offset.toFixed(3)} V
+                      </p>
+                    </div>
+                    <span className="rounded-full border border-white/20 px-3 py-1 text-xs text-slate-200">
+                      pH: {phValue !== null ? phValue.toFixed(1) : "―"}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <div className="rounded-2xl border border-white/5 bg-slate-950/40 p-3">
+                      <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                        電位①（変換後）
+                      </p>
+                      <p className="mt-1 text-2xl font-semibold text-white">
+                        {formatValue(converted1)}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-white/5 bg-slate-950/40 p-3">
+                      <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                        電位②（変換後）
+                      </p>
+                      <p className="mt-1 text-2xl font-semibold text-white">
+                        {formatValue(converted2)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-2xl border border-emerald-400/60 bg-gradient-to-br from-emerald-500/5 to-slate-900/60 p-3 text-sm text-emerald-200">
+                    <p className="text-xs uppercase tracking-[0.3em] text-emerald-100">
+                      CVレンジ
+                    </p>
+                    <p className="mt-1 text-lg font-semibold text-white">
+                      {rangeMin !== null && rangeMax !== null
+                        ? `${rangeMin.toFixed(3)} V ～ ${rangeMax.toFixed(3)} V`
+                        : "―"}
+                    </p>
+                    <p className="text-xs text-emerald-200">
+                      幅：
+                      {rangeSize !== null
+                        ? `${rangeSize.toFixed(3)} V`
+                        : "―"}
+                    </p>
+                  </div>
+
+                  <div className="mt-4 flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <KaTeXFormula formula={formulaString} />
+                      <p className="mt-2 text-xs text-slate-400">
+                        {state.direction === "rheToRef"
+                          ? "RHE基準 → 選択電極基準"
+                          : "選択電極基準 → RHE基準"}{" "}
+                        （RT/F、pH、オフセットを反映）
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setModalOpen(true)}
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-white/30 bg-slate-900/80 text-sm font-semibold text-white transition hover:border-white hover:bg-emerald-500/90"
+                      aria-label="計算の説明を表示"
+                    >
+                      i
+                    </button>
+                  </div>
+                </section>
+              </div>
+            </main>
+          </div>
+          {isModalOpen && (
+            <Modal onClose={() => setModalOpen(false)}></Modal>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+
+</html>
