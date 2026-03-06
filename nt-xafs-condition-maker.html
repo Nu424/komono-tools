@@ -650,27 +650,27 @@
     /** サマリ表の小部品（編集可能） */
     function SummaryTable({ params, setParam }) {
       const rows = [
-        { label: "E0", key: "e0", unit: " eV" },
-        { label: "Epre_min", key: "epreMin", unit: " eV" },
-        { label: "Epre_max", key: "epreMax", unit: " eV" },
-        { label: "XANES_k_end", key: "xanesKEnd", unit: " k" },
-        { label: "kmax", key: "kmax", unit: " k" },
-        { label: "numstep", key: "numstep", unit: "" },
-        { label: "numstep_xanes", key: "numstepXanes", unit: "" },
-        { label: "exposure", key: "exposureTime", unit: " s" },
+        { label: "E0", key: "e0", unit: " eV", description: "吸収端のエネルギー（eV）" },
+        { label: "Epre_min", key: "epreMin", unit: " eV", description: "XANESまえ領域のはじまり" },
+        { label: "Epre_max", key: "epreMax", unit: " eV", description: "XANESまえ領域のおわり（=XANES領域のはじまり）" },
+        { label: "XANES_k_end", key: "xanesKEnd", unit: " k", description: "XANES領域のおわり（=XANESあと領域のはじまり）" },
+        { label: "kmax", key: "kmax", unit: " k", description: "XANESあと領域のおわり" },
+        { label: "numstep", key: "numstep", unit: "", description: "XANES領域以外をどれくらいの分割数で測定するか？ XANESまえ領域は、XANESまえ領域すべてをnumstepで分割する。XANESあと領域は、各k1つ分をnumstepで分割する。" },
+        { label: "numstep_xanes", key: "numstepXanes", unit: "", description: "XANES領域をどれくらいの分割数で測定するか？" },
+        { label: "exposure", key: "exposureTime", unit: " s", description: "各測定にどれくらい時間をかけるか？（単位：秒）" },
       ];
 
       return (
         <div className="overflow-hidden rounded-2xl border border-white/10 bg-slate-900/70">
           <div className="divide-y divide-white/5">
-            {rows.map(({ label, key, unit }) => {
+            {rows.map(({ label, key, unit, description }) => {
               const inputId = `summary-${key}`;
               return (
                 <div
                   key={key}
                   className="grid gap-2 px-3 py-2.5 sm:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] sm:items-center"
                 >
-                  <label htmlFor={inputId} className="text-sm font-medium text-slate-300">{label}</label>
+                  <label htmlFor={inputId} className="cursor-help text-sm font-medium text-slate-300" title={description}>{label}</label>
                   <div className="flex items-center gap-2">
                     <input
                       id={inputId}
