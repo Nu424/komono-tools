@@ -830,15 +830,15 @@
               </div>
             </header>
 
-            <main className="grid gap-3 lg:grid-cols-[1.45fr_0.95fr]">
-              <section className="rounded-3xl border border-white/10 bg-slate-900/75 p-4 shadow-2xl shadow-black/30 backdrop-blur">
+            <main className="grid min-w-0 gap-3 lg:grid-cols-[1.45fr_0.50fr]">
+              <section className="min-w-0 rounded-3xl border border-white/10 bg-slate-900/75 p-4 shadow-2xl shadow-black/30 backdrop-blur">
                 <SectionTitle
                   eyebrow="Visual Editor"
                   title="グラフィカル入力"
                   description="参考UIをもとに、測定範囲の主要パラメータを視覚的に調整します。"
                 />
-                <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-3">
-                  <div className="overflow-x-auto">
+                <div className="min-w-0 rounded-2xl border border-white/10 bg-slate-950/60 p-3">
+                  <div className="w-full max-w-full overflow-x-auto">
                     <svg viewBox="0 0 850 560" className="h-auto w-full min-w-[560px] rounded-2xl sm:min-w-[620px] md:min-w-[700px] lg:min-w-[820px]">
                     <defs>
                       <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
@@ -951,7 +951,7 @@
                 </div>
               </section>
 
-              <section className="rounded-3xl border border-white/10 bg-slate-900/75 p-4 shadow-2xl shadow-black/30 backdrop-blur">
+              <section className="min-w-0 rounded-3xl border border-white/10 bg-slate-900/75 p-4 shadow-2xl shadow-black/30 backdrop-blur">
                 <SectionTitle
                   eyebrow="Inputs"
                   title="吸収端と補助パラメータ"
@@ -1007,7 +1007,7 @@
               </section>
             </main>
 
-            <section className="mt-3 rounded-3xl border border-white/10 bg-slate-900/75 p-4 shadow-2xl shadow-black/30 backdrop-blur">
+            <section className="mt-3 min-w-0 rounded-3xl border border-white/10 bg-slate-900/75 p-4 shadow-2xl shadow-black/30 backdrop-blur">
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <SectionTitle
@@ -1038,7 +1038,7 @@
                   </button>
                 </div>
               </div>
-              <div className="overflow-x-auto rounded-2xl border border-white/10 bg-slate-950/50">
+              <div className="max-w-full overflow-x-auto rounded-2xl border border-white/10 bg-slate-950/50">
                 <table className="w-max min-w-full border-separate border-spacing-0">
                   <thead className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur">
                     <tr>
