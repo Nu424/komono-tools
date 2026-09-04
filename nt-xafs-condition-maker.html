@@ -516,6 +516,21 @@
       color: rgba(207, 250, 254, .7);
     }
 
+    /* 式の各項が何を指すかの対応表示 */
+    .estimate-legend {
+      margin-top: .25rem;
+      font-size: .75rem;
+      line-height: 1rem;
+      color: rgba(207, 250, 254, .45);
+    }
+
+    /* パラメータ一覧表の下に置く操作ボタン */
+    .summary-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: -.5rem;
+    }
+
     /* =========================================================
        詳細調整表
        ========================================================= */
@@ -623,6 +638,12 @@
     .button--ghost:hover {
       border-color: rgba(103, 232, 249, .5);
       background: rgba(103, 232, 249, .1);
+    }
+
+    .button--small {
+      width: auto;
+      padding: .375rem .75rem;
+      font-size: .75rem;
     }
 
     .table-scroller {
@@ -860,10 +881,18 @@
 
           <div id="summary" class="summary"></div>
 
+          <div class="summary-actions">
+            <button id="resetParams" class="button button--ghost button--small" type="button"
+              title="E0や吸収端を含め、すべての入力値を初期値に戻します（詳細調整表はそのままです）">
+              入力値を初期値に戻す
+            </button>
+          </div>
+
           <div class="estimate">
             <p class="estimate-label">予測測定時間</p>
             <p id="estimateValue" class="estimate-value">―</p>
             <p id="estimateFormula" class="estimate-formula"></p>
+            <p id="estimateLegend" class="estimate-legend"></p>
           </div>
         </div>
       </section>
@@ -941,7 +970,11 @@
       { label: "numstep", key: "numstep", unit: "", description: "XANES領域以外をどれくらいの分割数で測定するか？ XANESまえ領域は、XANESまえ領域すべてをnumstepで分割する。XANESあと領域は、各k1つ分をnumstepで分割する。" },
       { label: "numstep_xanes", key: "numstepXanes", unit: "", description: "XANES領域をどれくらいの分割数で測定するか？" },
       { label: "exposure", key: "exposureTime", unit: " s", description: "各測定にどれくらい時間をかけるか？（単位：秒）" },
+      { label: "overhead", key: "stepOverhead", unit: " s", description: "1ステップあたり、露光時間とは別にかかる時間（単位：秒）。経験的に求めた値で、既定は1.3秒。予測測定時間と、詳細調整表の合計時間の両方に効く。" },
     ];
+
+    /** overhead の既定値（経験的に求めた、1ステップあたりの所要時間） */
+    const DEFAULT_STEP_OVERHEAD = "1.3";
 
     /** よく使いそうな吸収端を先頭で選びやすくする */
     const FEATURED_EDGES = ["Cu-K", "Fe-K", "Ni-K", "Co-K", "Pt-L3", "Au-L3"];
@@ -1277,6 +1310,7 @@
         numstep: "20",
         numstepXanes: "150",
         exposureTime: "1",
+        stepOverhead: DEFAULT_STEP_OVERHEAD,
       };
     }
 
@@ -1317,6 +1351,30 @@
       const remainMinutes = minutes % 60;
       return `${hours} h ${remainMinutes} min`;
     }
+
+    /** 1ステップあたりのオーバーヘッド時間（秒）。負の値は 0 として扱う */
+    function getStepOverhead() {
+      return Math.max(0, parseMaybeNumber(state.params.stepOverhead) ?? 0);
+    }
+
+    /**
+     * 予測測定時間の式を組み立てる。
+     * 実際の数値でも記号名でも同じ形になるので、両者の対応がずれない。
+     */
+    function buildEstimateExpression(terms) {
+      return `(${terms.numstep} + ${terms.numstepXanes} + ${terms.numstep} × (${terms.kmax} - ${terms.xanesKEnd}))`
+        + ` × (${terms.exposureTime} + ${terms.stepOverhead})`;
+    }
+
+    /** 式の各項が何を指すかを示すための記号名 */
+    const ESTIMATE_SYMBOLS = {
+      numstep: "numstep",
+      numstepXanes: "numstep_xanes",
+      kmax: "kmax",
+      xanesKEnd: "XANES_k_end",
+      exposureTime: "exposure",
+      stepOverhead: "overhead",
+    };
 
     /** k 値を E0 からのエネルギー差に変換する */
     function convertKToEnergyOffset(kValue) {
@@ -1439,7 +1497,7 @@
     const el = {};
     for (const id of [
       "selectedEdgeKey", "selectedEdgeEnergy", "edgeSearch", "edge-list", "edgeChips",
-      "summary", "estimateValue", "estimateFormula",
+      "summary", "resetParams", "estimateValue", "estimateFormula", "estimateLegend",
       "totalValue", "totalNote", "regenerate", "exportCsv", "detailHead", "detailBody",
     ]) {
       el[id] = document.getElementById(id);
@@ -1595,22 +1653,30 @@
       const numstep = parsePositiveNumber(params.numstep, 0);
       const numstepXanes = parsePositiveNumber(params.numstepXanes, 0);
       const exposureTime = parsePositiveNumber(params.exposureTime, 0);
+      const stepOverhead = getStepOverhead();
 
       const estimatedTime = (numstep + numstepXanes + numstep * Math.max(0, kmax - xanesKEnd))
-        * (exposureTime + 1.3);
+        * (exposureTime + stepOverhead);
 
       el.estimateValue.textContent = formatDuration(estimatedTime);
-      el.estimateFormula.textContent =
-        `(${numstep} + ${numstepXanes} + ${numstep} × (${formatDecimal(kmax, 2)} - ${formatDecimal(xanesKEnd, 2)}))`
-        + ` × (${formatDecimal(exposureTime, 2)} + 1.3)`;
+      el.estimateFormula.textContent = buildEstimateExpression({
+        numstep,
+        numstepXanes,
+        kmax: formatDecimal(kmax, 2),
+        xanesKEnd: formatDecimal(xanesKEnd, 2),
+        exposureTime: formatDecimal(exposureTime, 2),
+        stepOverhead: formatDecimal(stepOverhead, 2),
+      });
+      el.estimateLegend.textContent = buildEstimateExpression(ESTIMATE_SYMBOLS);
     }
 
     /** 行データから合計時間を更新する */
     function renderTotals() {
+      const stepOverhead = getStepOverhead();
       const detailedTotalTime = state.rows.reduce((accumulator, row) => {
         const rowSteps = parsePositiveNumber(row.numberOfSteps, 0);
         const rowExposure = parsePositiveNumber(row.exposureTime, 0);
-        return accumulator + rowSteps * (rowExposure + 1.3);
+        return accumulator + rowSteps * (rowExposure + stepOverhead);
       }, 0);
       const exafsRowCount = state.rows.filter((row) => row.region === "EXAFS").length;
 
@@ -1665,6 +1731,28 @@
         }
       }
       renderEstimate();
+      // overhead は詳細調整表の合計時間にも効くので、あわせて計算し直す
+      renderTotals();
+      saveState();
+    }
+
+    /** すべての入力値を初期値へ戻す（詳細調整表の中身は保持する） */
+    function resetParams() {
+      if (!window.confirm("入力値をすべて初期値に戻します。よろしいですか？")) {
+        return;
+      }
+      state.params = createDefaultParams();
+      state.selectedEdgeKey = DEFAULT_EDGE_KEY;
+      state.edgeSearch = DEFAULT_EDGE_KEY;
+      el.edgeSearch.value = DEFAULT_EDGE_KEY;
+      for (const [key, inputs] of Object.entries(paramInputs)) {
+        for (const input of inputs) {
+          input.value = state.params[key] ?? "";
+        }
+      }
+      renderEdge();
+      renderEstimate();
+      renderTotals();
       saveState();
     }
 
@@ -1739,6 +1827,7 @@
       el.edgeSearch.value = state.edgeSearch;
       el.edgeSearch.addEventListener("input", (event) => handleEdgeSearchChange(event.target.value));
 
+      el.resetParams.addEventListener("click", resetParams);
       el.regenerate.addEventListener("click", regenerateRows);
       el.exportCsv.addEventListener("click", () => downloadCsv(state.rows));
       el.detailBody.addEventListener("input", handleCellInput);
