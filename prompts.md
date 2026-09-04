@@ -1,6 +1,10 @@
 # prompts.md
 作ってもらうのに使ったプロンプト置き場です
 
+> **注記**: 以下は作成当時のプロンプトをそのまま残したものです。
+> 末尾でReact・TailwindCSSの使用を指示していますが、その後これらのCDN依存は解消し、
+> 素のHTML/CSS/JavaScriptへ書き直しました（現在の方針はREADMEの「つくりかた」を参照）。
+
 ## electrode-potential-converter.html
 ```
 電極の電位変換を計算するウェブツールを、html,css,jsで作成してください。
