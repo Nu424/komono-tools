@@ -6,23 +6,908 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>XAFS測定条件メーカー</title>
   <meta name="description" content="NT用XAFS の測定条件を視覚的に組み立てるツール" />
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script defer src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+
+  <style>
+    /* =========================================================
+       デザイントークン
+       ========================================================= */
+    :root {
+      --slate-950: #020617;
+      --slate-900: #0f172a;
+      --slate-800: #1e293b;
+      --slate-500: #64748b;
+      --slate-400: #94a3b8;
+      --slate-300: #cbd5e1;
+      --slate-100: #f1f5f9;
+      --cyan-400: #22d3ee;
+      --cyan-300: #67e8f9;
+      --cyan-200: #a5f3fc;
+      --cyan-100: #cffafe;
+      --cyan-50: #ecfeff;
+      --emerald-400: #34d399;
+      --emerald-100: #d1fae5;
+      --emerald-50: #ecfdf5;
+
+      --line: rgba(255, 255, 255, .1);
+      --line-soft: rgba(255, 255, 255, .05);
+      --shadow-lg: 0 25px 50px -12px rgba(0, 0, 0, .3);
+
+      --radius-lg: .5rem;
+      --radius-xl: .75rem;
+      --radius-2xl: 1rem;
+      --radius-3xl: 1.5rem;
+
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    /* =========================================================
+       ベース
+       ========================================================= */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top, rgba(34, 211, 238, .18), transparent 32%),
+        linear-gradient(180deg, var(--slate-950) 0%, var(--slate-950) 100%);
+      background-color: var(--slate-950);
+      color: var(--slate-100);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Hiragino Sans",
+        "Noto Sans JP", "Yu Gothic UI", sans-serif;
+      font-size: 16px;
+      line-height: 1.5;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    .page {
+      max-width: 80rem;
+      margin-inline: auto;
+      padding: .75rem;
+    }
+
+    @media (min-width: 640px) {
+      .page {
+        padding-inline: 1rem;
+      }
+    }
+
+    /* =========================================================
+       カード
+       ========================================================= */
+    .card {
+      min-width: 0;
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-3xl);
+      background: rgba(15, 23, 42, .75);
+      box-shadow: var(--shadow-lg);
+      backdrop-filter: blur(8px);
+    }
+
+    .card--header {
+      margin-bottom: .75rem;
+      background: rgba(15, 23, 42, .8);
+    }
+
+    .eyebrow {
+      font-size: .75rem;
+      line-height: 1rem;
+      letter-spacing: .4em;
+      text-transform: uppercase;
+      color: rgba(103, 232, 249, .7);
+    }
+
+    .page-title {
+      font-size: 1.5rem;
+      line-height: 2rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .page-subtitle {
+      margin-top: .25rem;
+      font-size: .875rem;
+      line-height: 1.25rem;
+      color: var(--slate-400);
+    }
+
+    .header-body {
+      display: flex;
+      flex-direction: column;
+      gap: .5rem;
+      margin-top: .5rem;
+    }
+
+    @media (min-width: 768px) {
+      .header-body {
+        flex-direction: row;
+        align-items: flex-end;
+        justify-content: space-between;
+      }
+    }
+
+    /* 選択中の吸収端の表示 */
+    .edge-readout {
+      width: 100%;
+      padding: .75rem 1rem;
+      border: 1px solid rgba(34, 211, 238, .2);
+      border-radius: var(--radius-2xl);
+      background: rgba(34, 211, 238, .1);
+      font-size: .875rem;
+      color: var(--cyan-100);
+    }
+
+    @media (min-width: 768px) {
+      .edge-readout {
+        width: auto;
+      }
+    }
+
+    .edge-readout strong {
+      font-weight: 600;
+    }
+
+    .edge-readout-energy {
+      font-family: var(--mono);
+      font-size: 1rem;
+      line-height: 1.5rem;
+    }
+
+    /* =========================================================
+       セクション見出し
+       ========================================================= */
+    .section-title {
+      margin-bottom: .75rem;
+    }
+
+    .section-title .eyebrow {
+      font-size: 11px;
+      letter-spacing: .28em;
+    }
+
+    .section-title h2 {
+      margin-top: .25rem;
+      font-size: 1.125rem;
+      line-height: 1.75rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .section-title p {
+      margin-top: .25rem;
+      font-size: .875rem;
+      line-height: 1.25rem;
+      color: var(--slate-400);
+    }
+
+    /* =========================================================
+       レイアウト
+       ========================================================= */
+    .layout {
+      display: grid;
+      gap: .75rem;
+      min-width: 0;
+    }
+
+    @media (min-width: 1024px) {
+      .layout {
+        grid-template-columns: 1.45fr 0.50fr;
+      }
+    }
+
+    /* =========================================================
+       グラフィカル入力（SVG）
+       ========================================================= */
+    .svg-frame {
+      min-width: 0;
+      padding: .75rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-2xl);
+      background: rgba(2, 6, 23, .6);
+    }
+
+    .svg-scroller {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: auto;
+    }
+
+    .svg-scroller svg {
+      width: 100%;
+      height: auto;
+      min-width: 560px;
+      border-radius: var(--radius-2xl);
+    }
+
+    @media (min-width: 640px) {
+      .svg-scroller svg {
+        min-width: 620px;
+      }
+    }
+
+    @media (min-width: 768px) {
+      .svg-scroller svg {
+        min-width: 700px;
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .svg-scroller svg {
+        min-width: 820px;
+      }
+    }
+
+    .svg-hint {
+      margin-top: .5rem;
+      font-size: .75rem;
+      line-height: 1rem;
+      color: var(--slate-500);
+    }
+
+    @media (min-width: 640px) {
+      .svg-hint {
+        display: none;
+      }
+    }
+
+    /* SVG 内に埋め込むラベル */
+    .svg-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+    }
+
+    .svg-label > span {
+      padding: .25rem .75rem;
+      border: 1px solid rgba(255, 255, 255, .2);
+      border-radius: 9999px;
+      background: rgba(15, 23, 42, .9);
+      font-size: .75rem;
+      font-weight: 600;
+      color: var(--slate-100);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, .3);
+    }
+
+    /* SVG 内に埋め込む入力欄 */
+    .svg-input-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .svg-input-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: .25rem .5rem;
+      border: 1px solid rgba(255, 255, 255, .15);
+      border-radius: var(--radius-xl);
+      background: rgba(15, 23, 42, .95);
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, .4);
+      pointer-events: auto;
+    }
+
+    .svg-input-box input {
+      width: 72px;
+      padding: .25rem .5rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: var(--slate-950);
+      color: var(--slate-100);
+      font-family: var(--mono);
+      font-size: .875rem;
+      text-align: center;
+      outline: none;
+      transition: border-color .15s ease;
+    }
+
+    .svg-input-box input:focus {
+      border-color: var(--cyan-400);
+    }
+
+    .svg-input-box input.is-wide {
+      width: 82px;
+    }
+
+    .svg-input-box span {
+      margin-top: .25rem;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .025em;
+      color: var(--slate-400);
+    }
+
+    /* =========================================================
+       入力パネル
+       ========================================================= */
+    .input-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .panel {
+      padding: .75rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-2xl);
+      background: rgba(2, 6, 23, .6);
+    }
+
+    .panel > label {
+      display: block;
+      margin-bottom: .5rem;
+      font-size: .875rem;
+      line-height: 1.25rem;
+      font-weight: 500;
+      color: var(--slate-300);
+    }
+
+    .text-input {
+      width: 100%;
+      min-width: 0;
+      padding: .5rem .75rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      background: var(--slate-950);
+      color: var(--slate-100);
+      font: inherit;
+      font-size: .875rem;
+      line-height: 1.25rem;
+      outline: none;
+      transition: border-color .15s ease;
+    }
+
+    .text-input:focus {
+      border-color: var(--cyan-400);
+    }
+
+    /* よく使う吸収端のショートカット */
+    .edge-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem;
+      margin-top: .75rem;
+    }
+
+    .edge-chip {
+      padding: .25rem .75rem;
+      border: 1px solid var(--line);
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, .05);
+      color: var(--slate-300);
+      font: inherit;
+      font-size: .75rem;
+      line-height: 1rem;
+      cursor: pointer;
+      transition: border-color .15s ease, color .15s ease, background-color .15s ease;
+    }
+
+    .edge-chip:hover {
+      border-color: rgba(103, 232, 249, .5);
+      color: #fff;
+    }
+
+    .edge-chip.is-active {
+      border-color: var(--cyan-300);
+      background: rgba(103, 232, 249, .2);
+      color: var(--cyan-100);
+    }
+
+    /* パラメータ一覧表 */
+    .summary {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-2xl);
+      background: rgba(15, 23, 42, .7);
+    }
+
+    .summary-row {
+      display: grid;
+      gap: .5rem;
+      padding: .625rem .75rem;
+      border-top: 1px solid var(--line-soft);
+    }
+
+    .summary-row:first-child {
+      border-top: 0;
+    }
+
+    @media (min-width: 640px) {
+      .summary-row {
+        grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+        align-items: center;
+      }
+    }
+
+    .summary-row > label {
+      cursor: help;
+      font-size: .875rem;
+      line-height: 1.25rem;
+      font-weight: 500;
+      color: var(--slate-300);
+    }
+
+    .summary-field {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+
+    .summary-field input {
+      width: 100%;
+      min-width: 0;
+      padding: .375rem .5rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: rgba(2, 6, 23, .8);
+      color: var(--slate-100);
+      font-family: var(--mono);
+      font-size: .875rem;
+      outline: none;
+      transition: border-color .15s ease;
+    }
+
+    .summary-field input:focus {
+      border-color: var(--cyan-400);
+    }
+
+    .summary-unit {
+      flex-shrink: 0;
+      font-size: .75rem;
+      color: var(--slate-400);
+    }
+
+    @media (min-width: 640px) {
+      .summary-unit {
+        font-size: .875rem;
+      }
+    }
+
+    /* 予測測定時間 */
+    .estimate {
+      padding: 1rem;
+      border: 1px solid rgba(34, 211, 238, .2);
+      border-radius: var(--radius-2xl);
+      background: rgba(34, 211, 238, .1);
+    }
+
+    .estimate-label {
+      font-size: .75rem;
+      line-height: 1rem;
+      letter-spacing: .28em;
+      text-transform: uppercase;
+      color: rgba(165, 243, 252, .7);
+    }
+
+    .estimate-value {
+      margin-top: .5rem;
+      font-size: 1.5rem;
+      line-height: 2rem;
+      font-weight: 600;
+      color: var(--cyan-50);
+    }
+
+    .estimate-formula {
+      margin-top: .5rem;
+      font-size: .75rem;
+      line-height: 1rem;
+      color: rgba(207, 250, 254, .7);
+    }
+
+    /* =========================================================
+       詳細調整表
+       ========================================================= */
+    .detail-section {
+      margin-top: .75rem;
+    }
+
+    .detail-head {
+      display: flex;
+      flex-direction: column;
+      gap: .75rem;
+      margin-bottom: 1rem;
+    }
+
+    @media (min-width: 640px) {
+      .detail-head {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+      }
+    }
+
+    .detail-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: stretch;
+      gap: .75rem;
+      width: 100%;
+    }
+
+    @media (min-width: 640px) {
+      .detail-actions {
+        width: auto;
+        align-items: center;
+      }
+    }
+
+    .total-box {
+      width: 100%;
+      padding: .5rem 1rem;
+      border: 1px solid rgba(52, 211, 153, .2);
+      border-radius: var(--radius-xl);
+      background: rgba(52, 211, 153, .1);
+    }
+
+    @media (min-width: 640px) {
+      .total-box {
+        width: auto;
+      }
+    }
+
+    .total-label {
+      font-size: 10px;
+      line-height: 1rem;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: rgba(167, 243, 208, .7);
+    }
+
+    .total-value {
+      font-weight: 600;
+      color: var(--emerald-50);
+    }
+
+    .total-note {
+      font-size: 10px;
+      line-height: 1rem;
+      color: rgba(209, 250, 229, .7);
+    }
+
+    .button {
+      width: 100%;
+      padding: .625rem 1rem;
+      border: 0;
+      border-radius: var(--radius-xl);
+      font: inherit;
+      font-size: .875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color .15s ease, border-color .15s ease;
+    }
+
+    @media (min-width: 640px) {
+      .button {
+        width: auto;
+      }
+    }
+
+    .button--primary {
+      background: var(--cyan-400);
+      color: var(--slate-950);
+    }
+
+    .button--primary:hover {
+      background: var(--cyan-300);
+    }
+
+    .button--ghost {
+      border: 1px solid rgba(255, 255, 255, .15);
+      background: rgba(255, 255, 255, .05);
+      color: var(--slate-100);
+      font-weight: 500;
+    }
+
+    .button--ghost:hover {
+      border-color: rgba(103, 232, 249, .5);
+      background: rgba(103, 232, 249, .1);
+    }
+
+    .table-scroller {
+      max-width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-2xl);
+      background: rgba(2, 6, 23, .5);
+    }
+
+    .detail-table {
+      width: max-content;
+      min-width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+
+    .detail-table th {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      padding: .75rem;
+      border-bottom: 1px solid var(--line);
+      background: rgba(15, 23, 42, .95);
+      backdrop-filter: blur(8px);
+      font-size: .75rem;
+      font-weight: 600;
+      letter-spacing: .24em;
+      text-align: left;
+      text-transform: uppercase;
+      color: var(--slate-400);
+    }
+
+    .detail-table td {
+      padding: .75rem;
+      border-bottom: 1px solid var(--line-soft);
+      vertical-align: top;
+    }
+
+    .detail-table .region-cell {
+      font-size: .875rem;
+      font-weight: 500;
+      color: var(--slate-300);
+    }
+
+    .cell-input {
+      width: 100%;
+      min-width: 76px;
+      padding: .375rem .5rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: rgba(2, 6, 23, .8);
+      color: var(--slate-100);
+      font-family: var(--mono);
+      font-size: .75rem;
+      outline: none;
+      transition: border-color .15s ease;
+    }
+
+    .cell-input:focus {
+      border-color: var(--cyan-400);
+    }
+
+    @media (min-width: 640px) {
+      .cell-input {
+        min-width: 90px;
+        font-size: .875rem;
+      }
+    }
+  </style>
 </head>
 
-<body class="bg-slate-950 text-slate-100">
-  <div id="root" class="min-h-screen w-full"></div>
+<body>
+  <div class="page">
+    <header class="card card--header">
+      <p class="eyebrow">XAFS Condition Maker</p>
+      <div class="header-body">
+        <div>
+          <h1 class="page-title">XAFS測定条件メーカー</h1>
+          <p class="page-subtitle">グラフィカルに測定条件を作れます。</p>
+        </div>
+        <div class="edge-readout">
+          <div>選択中の吸収端: <strong id="selectedEdgeKey"></strong></div>
+          <div id="selectedEdgeEnergy" class="edge-readout-energy"></div>
+        </div>
+      </div>
+    </header>
 
-  <script type="text/babel" data-type="module" data-presets="react">
-    import React, { useEffect } from "https://esm.sh/react@18.3.1";
-    import { createRoot } from "https://esm.sh/react-dom@18.3.1/client";
-    import { createStore } from "https://esm.sh/zustand@5.0.11/vanilla";
+    <main class="layout">
+      <!-- グラフィカル入力 -->
+      <section class="card">
+        <div class="section-title">
+          <p class="eyebrow">Visual Editor</p>
+          <h2>グラフィカル入力</h2>
+          <p>測定範囲の主要パラメータを視覚的に調整します。</p>
+        </div>
+        <div class="svg-frame">
+          <div class="svg-scroller">
+            <svg viewBox="0 0 850 560" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6"
+                  orient="auto-start-reverse">
+                  <path d="M 0 2 L 10 5 L 0 8 z" fill="#cbd5e1" />
+                </marker>
+              </defs>
+
+              <!-- 領域の帯 -->
+              <rect x="120" y="48" width="145" height="395" rx="16" fill="#38bdf8" fill-opacity="0.06" />
+              <rect x="265" y="48" width="215" height="395" rx="16" fill="#f43f5e" fill-opacity="0.06" />
+              <rect x="480" y="48" width="300" height="395" rx="16" fill="#22c55e" fill-opacity="0.06" />
+
+              <text x="190" y="32" text-anchor="middle" fill="#67e8f9" font-weight="700" font-size="14">Pre-edge</text>
+              <text x="372" y="32" text-anchor="middle" fill="#fda4af" font-weight="700" font-size="14">XANES / Edge</text>
+              <text x="630" y="32" text-anchor="middle" fill="#86efac" font-weight="700" font-size="14">EXAFS</text>
+
+              <!-- 区切り線 -->
+              <line x1="120" y1="48" x2="120" y2="510" stroke="#475569" stroke-width="1" />
+              <line x1="265" y1="48" x2="265" y2="450" stroke="#64748b" stroke-dasharray="5 5" stroke-width="1.5" />
+              <line x1="360" y1="48" x2="360" y2="510" stroke="#fbbf24" stroke-dasharray="6 4" stroke-width="2" />
+              <line x1="480" y1="48" x2="480" y2="450" stroke="#64748b" stroke-dasharray="5 5" stroke-width="1.5" />
+              <line x1="780" y1="48" x2="780" y2="450" stroke="#64748b" stroke-width="1.5" />
+              <line x1="80" y1="380" x2="810" y2="380" stroke="#1e293b" stroke-width="1" />
+
+              <!-- スペクトルの模式図 -->
+              <path d="M 120 374 Q 190 380 265 370" fill="none" stroke="#38bdf8" stroke-width="3"
+                stroke-linecap="round" />
+              <path d="M 265 370 C 330 360, 338 150, 380 145 C 430 145, 445 250, 480 260" fill="none" stroke="#f43f5e"
+                stroke-width="3" stroke-linecap="round" />
+              <path
+                d="M 480 260
+                   L 500 246
+                   L 520 274
+                   L 540 248
+                   L 560 282
+                   L 580 252
+                   L 600 286
+                   L 620 256
+                   L 640 290
+                   L 660 260
+                   L 680 292
+                   L 700 264
+                   L 720 294
+                   L 740 268
+                   L 760 296
+                   L 780 272"
+                fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" />
+
+              <!-- 軸ラベル -->
+              <foreignObject x="34" y="50" width="72" height="40">
+                <div xmlns="http://www.w3.org/1999/xhtml" class="svg-label"><span>k</span></div>
+              </foreignObject>
+              <foreignObject x="34" y="415" width="72" height="40">
+                <div xmlns="http://www.w3.org/1999/xhtml" class="svg-label"><span>eV</span></div>
+              </foreignObject>
+              <foreignObject x="324" y="50" width="72" height="40">
+                <div xmlns="http://www.w3.org/1999/xhtml" class="svg-label"><span>0</span></div>
+              </foreignObject>
+
+              <!-- Epre_min -->
+              <line x1="126" y1="508" x2="354" y2="508" stroke="#cbd5e1" stroke-width="1.5" marker-start="url(#arrow)"
+                marker-end="url(#arrow)" />
+              <foreignObject x="188" y="471" width="104" height="68" overflow="visible">
+                <div xmlns="http://www.w3.org/1999/xhtml" class="svg-input-wrap">
+                  <div class="svg-input-box">
+                    <input type="text" data-param="epreMin" aria-label="Epre_min" />
+                    <span>Epre_min</span>
+                  </div>
+                </div>
+              </foreignObject>
+
+              <!-- Epre_max -->
+              <line x1="271" y1="448" x2="354" y2="448" stroke="#cbd5e1" stroke-width="1.5" marker-start="url(#arrow)"
+                marker-end="url(#arrow)" />
+              <foreignObject x="260" y="412" width="104" height="68" overflow="visible">
+                <div xmlns="http://www.w3.org/1999/xhtml" class="svg-input-wrap">
+                  <div class="svg-input-box">
+                    <input type="text" data-param="epreMax" aria-label="Epre_max" />
+                    <span>Epre_max</span>
+                  </div>
+                </div>
+              </foreignObject>
+
+              <!-- E0 -->
+              <foreignObject x="308" y="251" width="104" height="68" overflow="visible">
+                <div xmlns="http://www.w3.org/1999/xhtml" class="svg-input-wrap">
+                  <div class="svg-input-box">
+                    <input type="text" class="is-wide" data-param="e0" aria-label="E0 (eV)" />
+                    <span>E0 (eV)</span>
+                  </div>
+                </div>
+              </foreignObject>
+
+              <!-- XANES_k_end -->
+              <line x1="366" y1="108" x2="474" y2="108" stroke="#cbd5e1" stroke-width="1.5" marker-start="url(#arrow)"
+                marker-end="url(#arrow)" />
+              <foreignObject x="428" y="48" width="104" height="68" overflow="visible">
+                <div xmlns="http://www.w3.org/1999/xhtml" class="svg-input-wrap">
+                  <div class="svg-input-box">
+                    <input type="text" data-param="xanesKEnd" aria-label="XANES_k_end" />
+                    <span>XANES_k_end</span>
+                  </div>
+                </div>
+              </foreignObject>
+
+              <!-- kmax -->
+              <foreignObject x="728" y="48" width="104" height="68" overflow="visible">
+                <div xmlns="http://www.w3.org/1999/xhtml" class="svg-input-wrap">
+                  <div class="svg-input-box">
+                    <input type="text" data-param="kmax" aria-label="kmax" />
+                    <span>kmax</span>
+                  </div>
+                </div>
+              </foreignObject>
+            </svg>
+          </div>
+          <p class="svg-hint">表示が狭い場合は横スクロールして編集できます。</p>
+        </div>
+      </section>
+
+      <!-- 吸収端と測定パラメータ -->
+      <section class="card">
+        <div class="section-title">
+          <p class="eyebrow">Inputs</p>
+          <h2>吸収端と測定パラメータ</h2>
+          <p>吸収端などの測定パラメータを入力します。</p>
+        </div>
+
+        <div class="input-stack">
+          <div class="panel">
+            <label for="edgeSearch">吸収端を検索</label>
+            <input id="edgeSearch" class="text-input" list="edge-list" placeholder="例: Cu-K, Fe-K, Pt-L3" />
+            <datalist id="edge-list"></datalist>
+            <div id="edgeChips" class="edge-chips"></div>
+          </div>
+
+          <div id="summary" class="summary"></div>
+
+          <div class="estimate">
+            <p class="estimate-label">予測測定時間</p>
+            <p id="estimateValue" class="estimate-value">―</p>
+            <p id="estimateFormula" class="estimate-formula"></p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- 詳細調整表 -->
+    <section class="card detail-section">
+      <div class="detail-head">
+        <div class="section-title">
+          <p class="eyebrow">Detail Table</p>
+          <h2>詳細調整表</h2>
+          <p>生成後は各セルを直接編集できます。予測測定時間は行データから再計算されます。</p>
+        </div>
+        <div class="detail-actions">
+          <div class="total-box">
+            <p class="total-label">合計時間</p>
+            <p id="totalValue" class="total-value">―</p>
+            <p id="totalNote" class="total-note"></p>
+          </div>
+          <button id="regenerate" class="button button--primary" type="button">
+            現在のパラメータから測定条件表を更新する
+          </button>
+          <button id="exportCsv" class="button button--ghost" type="button">CSVを書き出す</button>
+        </div>
+      </div>
+      <div class="table-scroller">
+        <table class="detail-table">
+          <thead>
+            <tr id="detailHead"></tr>
+          </thead>
+          <tbody id="detailBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    "use strict";
 
     /** localStorage 保存キー */
     const STORAGE_KEY = "ntXafasConditionMakerState";
 
     /** k からエネルギー差分への変換係数 */
-    const K_ENERGY_FACTOR = (1/0.51233)**2;
+    const K_ENERGY_FACTOR = (1 / 0.51233) ** 2;
 
     /** CSV の列順 */
     const CSV_HEADERS = [
@@ -35,311 +920,323 @@
       "Final-k",
     ];
 
+    /** 詳細調整表の列と、行データのフィールドの対応 */
+    const ROW_FIELDS = [
+      "initEnergy",
+      "finalEnergy",
+      "numberOfSteps",
+      "exposureTime",
+      "stepEnergy",
+      "initK",
+      "finalK",
+    ];
+
+    /** パラメータ一覧表の定義 */
+    const SUMMARY_FIELDS = [
+      { label: "E0", key: "e0", unit: " eV", description: "吸収端のエネルギー（eV）" },
+      { label: "Epre_min", key: "epreMin", unit: " eV", description: "XANESまえ領域のはじまり" },
+      { label: "Epre_max", key: "epreMax", unit: " eV", description: "XANESまえ領域のおわり（=XANES領域のはじまり）" },
+      { label: "XANES_k_end", key: "xanesKEnd", unit: " k", description: "XANES領域のおわり（=XANESあと領域のはじまり）" },
+      { label: "kmax", key: "kmax", unit: " k", description: "XANESあと領域のおわり" },
+      { label: "numstep", key: "numstep", unit: "", description: "XANES領域以外をどれくらいの分割数で測定するか？ XANESまえ領域は、XANESまえ領域すべてをnumstepで分割する。XANESあと領域は、各k1つ分をnumstepで分割する。" },
+      { label: "numstep_xanes", key: "numstepXanes", unit: "", description: "XANES領域をどれくらいの分割数で測定するか？" },
+      { label: "exposure", key: "exposureTime", unit: " s", description: "各測定にどれくらい時間をかけるか？（単位：秒）" },
+    ];
+
+    /** よく使いそうな吸収端を先頭で選びやすくする */
+    const FEATURED_EDGES = ["Cu-K", "Fe-K", "Ni-K", "Co-K", "Pt-L3", "Au-L3"];
+
+    /** 既定の吸収端 */
+    const DEFAULT_EDGE_KEY = "Cu-K";
+
     /** 吸収端エネルギー辞書 */
     const EDGE_ENERGY_MAP = {
-        "H-K": 13.6,
-        "He-K": 24.6,
-        "Li-K": 54.8,
-        "Be-K": 112.1,
-        "B-K": 188.0,
-        "B-L3": 4.7,
-        "C-K": 283.8,
-        "C-L3": 6.4,
-        "N-K": 401.6,
-        "N-L3": 9.2,
-        "O-K": 532.0,
-        "O-L3": 7.1,
-        "F-K": 685.4,
-        "F-L3": 8.6,
-        "Ne-K": 870.1,
-        "Ne-L3": 21.6,
-        "Na-K": 1072.1,
-        "Na-L3": 31.1,
-        "Mg-K": 1305.0,
-        "Mg-L3": 51.4,
-        "Al-K": 1559.6,
-        "Al-L3": 72.7,
-        "Si-K": 1838.9,
-        "Si-L3": 98.9,
-        "P-K": 2145.5,
-        "P-L3": 135.3,
-        "S-K": 2472.0,
-        "S-L3": 164.2,
-        "Cl-K": 2822.4,
-        "Cl-L3": 200.0,
-        "Ar-K": 3206.0,
-        "Ar-L3": 248.6,
-        "K-K": 3607.4,
-        "K-L3": 293.6,
-        "Ca-K": 4038.1,
-        "Ca-L3": 346.4,
-        "Sc-K": 4492.8,
-        "Sc-L3": 402.2,
-        "Sc-M5": 6.6,
-        "Ti-K": 4966.4,
-        "Ti-L3": 455.5,
-        "Ti-M5": 3.7,
-        "V-K": 5465.1,
-        "V-L3": 512.9,
-        "V-M5": 2.2,
-        "Cr-K": 5989.2,
-        "Cr-L3": 574.5,
-        "Cr-M5": 2.3,
-        "Mn-K": 6539.0,
-        "Mn-L3": 640.3,
-        "Mn-M5": 3.3,
-        "Fe-K": 7112.0,
-        "Fe-L3": 708.1,
-        "Fe-M5": 3.6,
-        "Co-K": 7708.9,
-        "Co-L3": 778.6,
-        "Co-M5": 2.9,
-        "Ni-K": 8332.8,
-        "Ni-L3": 854.7,
-        "Ni-M5": 3.6,
-        "Cu-K": 8978.9,
-        "Cu-L3": 931.1,
-        "Cu-M5": 1.6,
-        "Zn-K": 9658.6,
-        "Zn-L3": 1019.7,
-        "Zn-M5": 8.1,
-        "Ga-K": 10367.1,
-        "Ga-L3": 1115.4,
-        "Ga-M5": 17.4,
-        "Ge-K": 11103.1,
-        "Ge-L3": 1216.7,
-        "Ge-M5": 28.7,
-        "As-K": 11866.7,
-        "As-L3": 1323.1,
-        "As-M5": 41.2,
-        "Se-K": 12657.8,
-        "Se-L3": 1435.8,
-        "Se-M5": 56.7,
-        "Br-K": 13473.7,
-        "Br-L3": 1549.9,
-        "Br-M5": 69.0,
-        "Kr-K": 14325.6,
-        "Kr-L3": 1674.9,
-        "Kr-M5": 93.8,
-        "Rb-K": 15199.7,
-        "Rb-L3": 1804.4,
-        "Rb-M5": 110.3,
-        "Sr-K": 16104.6,
-        "Sr-L3": 1939.6,
-        "Sr-M5": 133.1,
-        "Y-K": 17038.4,
-        "Y-L3": 2080.0,
-        "Y-M5": 157.4,
-        "Zr-K": 17997.6,
-        "Zr-L3": 2222.3,
-        "Zr-M5": 180.0,
-        "Nb-K": 18985.6,
-        "Nb-L3": 2370.5,
-        "Nb-M5": 204.6,
-        "Mo-K": 19999.5,
-        "Mo-L3": 2520.2,
-        "Mo-M5": 227.0,
-        "Tc-K": 21044.0,
-        "Tc-L3": 2676.9,
-        "Tc-M5": 252.9,
-        "Ru-K": 22117.2,
-        "Ru-L3": 2837.9,
-        "Ru-M5": 279.4,
-        "Rh-K": 23219.9,
-        "Rh-L3": 3003.8,
-        "Rh-M5": 307.0,
-        "Pd-K": 24350.3,
-        "Pd-L3": 3173.3,
-        "Pd-M5": 334.7,
-        "Ag-K": 25514.0,
-        "Ag-L3": 3351.1,
-        "Ag-M5": 366.7,
-        "Cd-K": 26711.2,
-        "Cd-L3": 3537.5,
-        "Cd-M5": 403.7,
-        "In-K": 27939.9,
-        "In-L3": 3730.1,
-        "In-M5": 443.1,
-        "Sn-K": 29200.1,
-        "Sn-L3": 3928.8,
-        "Sn-M5": 484.8,
-        "Sb-K": 30491.2,
-        "Sb-L3": 4132.2,
-        "Sb-M5": 527.5,
-        "Te-K": 31813.8,
-        "Te-L3": 4341.4,
-        "Te-M5": 572.1,
-        "I-K": 33169.4,
-        "I-L3": 4557.1,
-        "I-M5": 619.4,
-        "Xe-K": 34564.4,
-        "Xe-L3": 4782.2,
-        "Xe-M5": 676.7,
-        "Cs-K": 35984.6,
-        "Cs-L3": 5011.9,
-        "Cs-M5": 725.5,
-        "Ba-K": 37440.6,
-        "Ba-L3": 5247.0,
-        "Ba-M5": 780.7,
-        "La-K": 38924.6,
-        "La-L3": 5482.7,
-        "La-M5": 831.7,
-        "Ce-K": 40443.0,
-        "Ce-L3": 5723.4,
-        "Ce-M5": 883.3,
-        "Pr-K": 41990.6,
-        "Pr-L3": 5964.3,
-        "Pr-M5": 931.0,
-        "Nd-K": 43568.9,
-        "Nd-L3": 6207.9,
-        "Nd-M5": 977.7,
-        "Pm-K": 45184.0,
-        "Pm-L3": 6459.3,
-        "Pm-M5": 1026.9,
-        "Sm-K": 46834.2,
-        "Sm-L3": 6716.2,
-        "Sm-M5": 1080.2,
-        "Eu-K": 48519.0,
-        "Eu-L3": 6976.9,
-        "Eu-M5": 1130.9,
-        "Gd-K": 50239.1,
-        "Gd-L3": 7242.8,
-        "Gd-M5": 1185.2,
-        "Tb-K": 51995.7,
-        "Tb-L3": 7514.0,
-        "Tb-M5": 1241.2,
-        "Dy-K": 53788.5,
-        "Dy-L3": 7790.1,
-        "Dy-M5": 1294.9,
-        "Ho-K": 55617.7,
-        "Ho-L3": 8071.1,
-        "Ho-M5": 1351.4,
-        "Er-K": 57485.5,
-        "Er-L3": 8357.9,
-        "Er-M5": 1409.3,
-        "Tm-K": 59389.6,
-        "Tm-L3": 8648.0,
-        "Tm-M5": 1467.7,
-        "Yb-K": 61332.3,
-        "Yb-L3": 8943.6,
-        "Yb-M5": 1527.8,
-        "Lu-K": 63313.8,
-        "Lu-L3": 9244.1,
-        "Lu-M5": 1588.5,
-        "Hf-K": 65350.8,
-        "Hf-L3": 9560.7,
-        "Hf-M5": 1661.7,
-        "Ta-K": 67416.4,
-        "Ta-L3": 9881.1,
-        "Ta-M5": 1735.1,
-        "W-K": 69525.0,
-        "W-L3": 10206.8,
-        "W-M5": 1809.2,
-        "Re-K": 71676.4,
-        "Re-L3": 10535.3,
-        "Re-M5": 1882.9,
-        "Os-K": 73870.8,
-        "Os-L3": 10870.9,
-        "Os-M5": 1960.1,
-        "Ir-K": 76111.0,
-        "Ir-L3": 11215.2,
-        "Ir-M5": 2040.4,
-        "Pt-K": 78394.8,
-        "Pt-L3": 11563.8,
-        "Pt-M5": 2121.1,
-        "Au-K": 80724.9,
-        "Au-L3": 11918.7,
-        "Au-M5": 2205.7,
-        "Hg-K": 83102.3,
-        "Hg-L3": 12283.9,
-        "Hg-M5": 2294.9,
-        "Tl-K": 85530.4,
-        "Tl-L3": 12657.5,
-        "Tl-M5": 2389.3,
-        "Pb-K": 88004.5,
-        "Pb-L3": 13035.2,
-        "Pb-M5": 2484.0,
-        "Bi-K": 90525.9,
-        "Bi-L3": 13418.6,
-        "Bi-M5": 2579.6,
-        "Po-K": 93100.0,
-        "Po-L3": 13810.0,
-        "Po-M5": 2680.0,
-        "At-K": 95724.0,
-        "At-L3": 14207.0,
-        "At-M5": 2781.0,
-        "Rn-K": 98397.0,
-        "Rn-L3": 14610.0,
-        "Rn-M5": 2884.0,
-        "Fr-K": 101130.0,
-        "Fr-L3": 15025.0,
-        "Fr-M5": 2994.0,
-        "Ra-K": 103915.0,
-        "Ra-L3": 15444.0,
-        "Ra-M5": 3105.0,
-        "Ac-K": 106756.0,
-        "Ac-L3": 15870.0,
-        "Ac-M5": 3219.0,
-        "Th-K": 109650.0,
-        "Th-L3": 16300.0,
-        "Th-M5": 3332.0,
-        "Pa-K": 112596.0,
-        "Pa-L3": 16733.0,
-        "Pa-M5": 3442.0,
-        "U-K": 115602.0,
-        "U-L3": 17168.0,
-        "U-M5": 3550.0,
-        "Np-K": 118669.0,
-        "Np-L3": 17610.0,
-        "Np-M5": 3664.0,
-        "Pu-K": 121791.0,
-        "Pu-L3": 18057.0,
-        "Pu-M5": 3775.0,
-        "Am-K": 124982.0,
-        "Am-L3": 18510.0,
-        "Am-M5": 3890.0,
-        "Cm-K": 128241.0,
-        "Cm-L3": 18970.0,
-        "Cm-M5": 4009.0,
-        "Bk-K": 131556.0,
-        "Bk-L3": 19435.0,
-        "Bk-M5": 4127.0,
-        "Cf-K": 134939.0,
-        "Cf-L3": 19907.0,
-        "Cf-M5": 4247.0,
-        "Es-K": 138396.0,
-        "Es-L3": 20384.0,
-        "Es-M5": 4368.0,
-        "Fm-K": 141926.0,
-        "Fm-L3": 20868.0,
-        "Fm-M5": 4491.0,
-        "Md-K": 146526.0,
-        "Md-L3": 21356.0,
-        "Md-M5": 4615.0,
-        "No-K": 149208.0,
-        "No-L3": 21851.0,
-        "No-M5": 4741.0,
-        "Lr-K": 152970.0,
-        "Lr-L3": 22359.0,
-        "Lr-M5": 4876.0
+      "H-K": 13.6,
+      "He-K": 24.6,
+      "Li-K": 54.8,
+      "Be-K": 112.1,
+      "B-K": 188.0,
+      "B-L3": 4.7,
+      "C-K": 283.8,
+      "C-L3": 6.4,
+      "N-K": 401.6,
+      "N-L3": 9.2,
+      "O-K": 532.0,
+      "O-L3": 7.1,
+      "F-K": 685.4,
+      "F-L3": 8.6,
+      "Ne-K": 870.1,
+      "Ne-L3": 21.6,
+      "Na-K": 1072.1,
+      "Na-L3": 31.1,
+      "Mg-K": 1305.0,
+      "Mg-L3": 51.4,
+      "Al-K": 1559.6,
+      "Al-L3": 72.7,
+      "Si-K": 1838.9,
+      "Si-L3": 98.9,
+      "P-K": 2145.5,
+      "P-L3": 135.3,
+      "S-K": 2472.0,
+      "S-L3": 164.2,
+      "Cl-K": 2822.4,
+      "Cl-L3": 200.0,
+      "Ar-K": 3206.0,
+      "Ar-L3": 248.6,
+      "K-K": 3607.4,
+      "K-L3": 293.6,
+      "Ca-K": 4038.1,
+      "Ca-L3": 346.4,
+      "Sc-K": 4492.8,
+      "Sc-L3": 402.2,
+      "Sc-M5": 6.6,
+      "Ti-K": 4966.4,
+      "Ti-L3": 455.5,
+      "Ti-M5": 3.7,
+      "V-K": 5465.1,
+      "V-L3": 512.9,
+      "V-M5": 2.2,
+      "Cr-K": 5989.2,
+      "Cr-L3": 574.5,
+      "Cr-M5": 2.3,
+      "Mn-K": 6539.0,
+      "Mn-L3": 640.3,
+      "Mn-M5": 3.3,
+      "Fe-K": 7112.0,
+      "Fe-L3": 708.1,
+      "Fe-M5": 3.6,
+      "Co-K": 7708.9,
+      "Co-L3": 778.6,
+      "Co-M5": 2.9,
+      "Ni-K": 8332.8,
+      "Ni-L3": 854.7,
+      "Ni-M5": 3.6,
+      "Cu-K": 8978.9,
+      "Cu-L3": 931.1,
+      "Cu-M5": 1.6,
+      "Zn-K": 9658.6,
+      "Zn-L3": 1019.7,
+      "Zn-M5": 8.1,
+      "Ga-K": 10367.1,
+      "Ga-L3": 1115.4,
+      "Ga-M5": 17.4,
+      "Ge-K": 11103.1,
+      "Ge-L3": 1216.7,
+      "Ge-M5": 28.7,
+      "As-K": 11866.7,
+      "As-L3": 1323.1,
+      "As-M5": 41.2,
+      "Se-K": 12657.8,
+      "Se-L3": 1435.8,
+      "Se-M5": 56.7,
+      "Br-K": 13473.7,
+      "Br-L3": 1549.9,
+      "Br-M5": 69.0,
+      "Kr-K": 14325.6,
+      "Kr-L3": 1674.9,
+      "Kr-M5": 93.8,
+      "Rb-K": 15199.7,
+      "Rb-L3": 1804.4,
+      "Rb-M5": 110.3,
+      "Sr-K": 16104.6,
+      "Sr-L3": 1939.6,
+      "Sr-M5": 133.1,
+      "Y-K": 17038.4,
+      "Y-L3": 2080.0,
+      "Y-M5": 157.4,
+      "Zr-K": 17997.6,
+      "Zr-L3": 2222.3,
+      "Zr-M5": 180.0,
+      "Nb-K": 18985.6,
+      "Nb-L3": 2370.5,
+      "Nb-M5": 204.6,
+      "Mo-K": 19999.5,
+      "Mo-L3": 2520.2,
+      "Mo-M5": 227.0,
+      "Tc-K": 21044.0,
+      "Tc-L3": 2676.9,
+      "Tc-M5": 252.9,
+      "Ru-K": 22117.2,
+      "Ru-L3": 2837.9,
+      "Ru-M5": 279.4,
+      "Rh-K": 23219.9,
+      "Rh-L3": 3003.8,
+      "Rh-M5": 307.0,
+      "Pd-K": 24350.3,
+      "Pd-L3": 3173.3,
+      "Pd-M5": 334.7,
+      "Ag-K": 25514.0,
+      "Ag-L3": 3351.1,
+      "Ag-M5": 366.7,
+      "Cd-K": 26711.2,
+      "Cd-L3": 3537.5,
+      "Cd-M5": 403.7,
+      "In-K": 27939.9,
+      "In-L3": 3730.1,
+      "In-M5": 443.1,
+      "Sn-K": 29200.1,
+      "Sn-L3": 3928.8,
+      "Sn-M5": 484.8,
+      "Sb-K": 30491.2,
+      "Sb-L3": 4132.2,
+      "Sb-M5": 527.5,
+      "Te-K": 31813.8,
+      "Te-L3": 4341.4,
+      "Te-M5": 572.1,
+      "I-K": 33169.4,
+      "I-L3": 4557.1,
+      "I-M5": 619.4,
+      "Xe-K": 34564.4,
+      "Xe-L3": 4782.2,
+      "Xe-M5": 676.7,
+      "Cs-K": 35984.6,
+      "Cs-L3": 5011.9,
+      "Cs-M5": 725.5,
+      "Ba-K": 37440.6,
+      "Ba-L3": 5247.0,
+      "Ba-M5": 780.7,
+      "La-K": 38924.6,
+      "La-L3": 5482.7,
+      "La-M5": 831.7,
+      "Ce-K": 40443.0,
+      "Ce-L3": 5723.4,
+      "Ce-M5": 883.3,
+      "Pr-K": 41990.6,
+      "Pr-L3": 5964.3,
+      "Pr-M5": 931.0,
+      "Nd-K": 43568.9,
+      "Nd-L3": 6207.9,
+      "Nd-M5": 977.7,
+      "Pm-K": 45184.0,
+      "Pm-L3": 6459.3,
+      "Pm-M5": 1026.9,
+      "Sm-K": 46834.2,
+      "Sm-L3": 6716.2,
+      "Sm-M5": 1080.2,
+      "Eu-K": 48519.0,
+      "Eu-L3": 6976.9,
+      "Eu-M5": 1130.9,
+      "Gd-K": 50239.1,
+      "Gd-L3": 7242.8,
+      "Gd-M5": 1185.2,
+      "Tb-K": 51995.7,
+      "Tb-L3": 7514.0,
+      "Tb-M5": 1241.2,
+      "Dy-K": 53788.5,
+      "Dy-L3": 7790.1,
+      "Dy-M5": 1294.9,
+      "Ho-K": 55617.7,
+      "Ho-L3": 8071.1,
+      "Ho-M5": 1351.4,
+      "Er-K": 57485.5,
+      "Er-L3": 8357.9,
+      "Er-M5": 1409.3,
+      "Tm-K": 59389.6,
+      "Tm-L3": 8648.0,
+      "Tm-M5": 1467.7,
+      "Yb-K": 61332.3,
+      "Yb-L3": 8943.6,
+      "Yb-M5": 1527.8,
+      "Lu-K": 63313.8,
+      "Lu-L3": 9244.1,
+      "Lu-M5": 1588.5,
+      "Hf-K": 65350.8,
+      "Hf-L3": 9560.7,
+      "Hf-M5": 1661.7,
+      "Ta-K": 67416.4,
+      "Ta-L3": 9881.1,
+      "Ta-M5": 1735.1,
+      "W-K": 69525.0,
+      "W-L3": 10206.8,
+      "W-M5": 1809.2,
+      "Re-K": 71676.4,
+      "Re-L3": 10535.3,
+      "Re-M5": 1882.9,
+      "Os-K": 73870.8,
+      "Os-L3": 10870.9,
+      "Os-M5": 1960.1,
+      "Ir-K": 76111.0,
+      "Ir-L3": 11215.2,
+      "Ir-M5": 2040.4,
+      "Pt-K": 78394.8,
+      "Pt-L3": 11563.8,
+      "Pt-M5": 2121.1,
+      "Au-K": 80724.9,
+      "Au-L3": 11918.7,
+      "Au-M5": 2205.7,
+      "Hg-K": 83102.3,
+      "Hg-L3": 12283.9,
+      "Hg-M5": 2294.9,
+      "Tl-K": 85530.4,
+      "Tl-L3": 12657.5,
+      "Tl-M5": 2389.3,
+      "Pb-K": 88004.5,
+      "Pb-L3": 13035.2,
+      "Pb-M5": 2484.0,
+      "Bi-K": 90525.9,
+      "Bi-L3": 13418.6,
+      "Bi-M5": 2579.6,
+      "Po-K": 93100.0,
+      "Po-L3": 13810.0,
+      "Po-M5": 2680.0,
+      "At-K": 95724.0,
+      "At-L3": 14207.0,
+      "At-M5": 2781.0,
+      "Rn-K": 98397.0,
+      "Rn-L3": 14610.0,
+      "Rn-M5": 2884.0,
+      "Fr-K": 101130.0,
+      "Fr-L3": 15025.0,
+      "Fr-M5": 2994.0,
+      "Ra-K": 103915.0,
+      "Ra-L3": 15444.0,
+      "Ra-M5": 3105.0,
+      "Ac-K": 106756.0,
+      "Ac-L3": 15870.0,
+      "Ac-M5": 3219.0,
+      "Th-K": 109650.0,
+      "Th-L3": 16300.0,
+      "Th-M5": 3332.0,
+      "Pa-K": 112596.0,
+      "Pa-L3": 16733.0,
+      "Pa-M5": 3442.0,
+      "U-K": 115602.0,
+      "U-L3": 17168.0,
+      "U-M5": 3550.0,
+      "Np-K": 118669.0,
+      "Np-L3": 17610.0,
+      "Np-M5": 3664.0,
+      "Pu-K": 121791.0,
+      "Pu-L3": 18057.0,
+      "Pu-M5": 3775.0,
+      "Am-K": 124982.0,
+      "Am-L3": 18510.0,
+      "Am-M5": 3890.0,
+      "Cm-K": 128241.0,
+      "Cm-L3": 18970.0,
+      "Cm-M5": 4009.0,
+      "Bk-K": 131556.0,
+      "Bk-L3": 19435.0,
+      "Bk-M5": 4127.0,
+      "Cf-K": 134939.0,
+      "Cf-L3": 19907.0,
+      "Cf-M5": 4247.0,
+      "Es-K": 138396.0,
+      "Es-L3": 20384.0,
+      "Es-M5": 4368.0,
+      "Fm-K": 141926.0,
+      "Fm-L3": 20868.0,
+      "Fm-M5": 4491.0,
+      "Md-K": 146526.0,
+      "Md-L3": 21356.0,
+      "Md-M5": 4615.0,
+      "No-K": 149208.0,
+      "No-L3": 21851.0,
+      "No-M5": 4741.0,
+      "Lr-K": 152970.0,
+      "Lr-L3": 22359.0,
+      "Lr-M5": 4876.0
     };
-
-    /**
-     * 数値入力用のデフォルト状態を返す。
-     * 文字列保持にすることで入力中の値を崩さない。
-     */
-    function createDefaultParams() {
-      return {
-        e0: "8978.9",
-        epreMin: "100",
-        epreMax: "20",
-        xanesKEnd: "3",
-        kmax: "12",
-        numstep: "20",
-        numstepXanes: "150",
-        exposureTime: "1",
-      };
-    }
 
     /**
      * 吸収端辞書を UI 用の配列へ整形する。
@@ -366,8 +1263,22 @@
       return accumulator;
     }, {});
 
-    /** よく使いそうな吸収端を先頭で選びやすくする */
-    const FEATURED_EDGES = ["Cu-K", "Fe-K", "Ni-K", "Co-K", "Pt-L3", "Au-L3"];
+    /**
+     * 数値入力用のデフォルト状態を返す。
+     * 文字列保持にすることで入力中の値を崩さない。
+     */
+    function createDefaultParams() {
+      return {
+        e0: "8978.9",
+        epreMin: "100",
+        epreMax: "20",
+        xanesKEnd: "3",
+        kmax: "12",
+        numstep: "20",
+        numstepXanes: "150",
+        exposureTime: "1",
+      };
+    }
 
     /** 数値のパース補助 */
     function parseMaybeNumber(value) {
@@ -419,7 +1330,7 @@
 
     /**
      * 入力パラメータから測定条件表を生成する。
-     * Prompt の仕様に合わせて、Pre-edge、XANES、EXAFS を並べる。
+     * Pre-edge、XANES、EXAFS の順に行を並べる。
      */
     function generateMeasurementRows(params) {
       const e0 = parseMaybeNumber(params.e0) ?? 0;
@@ -489,231 +1400,76 @@
     /** 保存済みデータを読み込んで初期状態を組み立てる */
     function createInitialState() {
       const defaultParams = createDefaultParams();
-      const fallbackRows = generateMeasurementRows(defaultParams);
 
       try {
         const raw = window.localStorage.getItem(STORAGE_KEY);
-        if (!raw) {
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          const params = { ...defaultParams, ...(parsed.params || {}) };
+          const selectedEdgeKey = EDGE_LOOKUP[parsed.selectedEdgeKey] ? parsed.selectedEdgeKey : DEFAULT_EDGE_KEY;
+          const rows = Array.isArray(parsed.rows) && parsed.rows.length > 0
+            ? parsed.rows
+            : generateMeasurementRows(params);
+
           return {
-            selectedEdgeKey: "Cu-K",
-            edgeSearch: "Cu-K",
-            params: defaultParams,
-            rows: fallbackRows,
-            lastGeneratedAt: null,
+            selectedEdgeKey,
+            edgeSearch: parsed.edgeSearch || selectedEdgeKey,
+            params,
+            rows,
+            lastGeneratedAt: parsed.lastGeneratedAt || null,
           };
         }
-
-        const parsed = JSON.parse(raw);
-        const params = { ...defaultParams, ...(parsed.params || {}) };
-        const selectedEdgeKey = EDGE_LOOKUP[parsed.selectedEdgeKey] ? parsed.selectedEdgeKey : "Cu-K";
-        const rows = Array.isArray(parsed.rows) && parsed.rows.length > 0 ? parsed.rows : generateMeasurementRows(params);
-
-        return {
-          selectedEdgeKey,
-          edgeSearch: parsed.edgeSearch || selectedEdgeKey,
-          params,
-          rows,
-          lastGeneratedAt: parsed.lastGeneratedAt || null,
-        };
       } catch (error) {
         console.error("XAFS状態の復元に失敗しました", error);
-        return {
-          selectedEdgeKey: "Cu-K",
-          edgeSearch: "Cu-K",
-          params: defaultParams,
-          rows: fallbackRows,
-          lastGeneratedAt: null,
-        };
       }
+
+      return {
+        selectedEdgeKey: DEFAULT_EDGE_KEY,
+        edgeSearch: DEFAULT_EDGE_KEY,
+        params: defaultParams,
+        rows: generateMeasurementRows(defaultParams),
+        lastGeneratedAt: null,
+      };
     }
 
-    /** Zustand の vanilla store 本体 */
-    const toolStore = createStore((set, get) => ({
-      ...createInitialState(),
-      setParam(field, value) {
-        set((state) => ({
-          params: {
-            ...state.params,
-            [field]: value,
-          },
+    /** 画面全体の状態 */
+    const state = createInitialState();
+
+    /** 参照する DOM 要素 */
+    const el = {};
+    for (const id of [
+      "selectedEdgeKey", "selectedEdgeEnergy", "edgeSearch", "edge-list", "edgeChips",
+      "summary", "estimateValue", "estimateFormula",
+      "totalValue", "totalNote", "regenerate", "exportCsv", "detailHead", "detailBody",
+    ]) {
+      el[id] = document.getElementById(id);
+    }
+
+    /** パラメータ名 → 入力欄（SVG 側と一覧表側の2か所にある） */
+    const paramInputs = {};
+
+    /** 現在の状態を localStorage へ保存する */
+    function saveState() {
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          selectedEdgeKey: state.selectedEdgeKey,
+          edgeSearch: state.edgeSearch,
+          params: state.params,
+          rows: state.rows,
+          lastGeneratedAt: state.lastGeneratedAt,
         }));
-      },
-      setEdgeSearch(value) {
-        set({ edgeSearch: value });
-      },
-      selectEdge(edgeKey) {
-        const selected = EDGE_LOOKUP[edgeKey];
-        if (!selected) {
-          return;
-        }
-        set((state) => ({
-          selectedEdgeKey: edgeKey,
-          edgeSearch: edgeKey,
-          params: {
-            ...state.params,
-            e0: formatDecimal(selected.energy, 1),
-          },
-        }));
-      },
-      regenerateRows() {
-        const params = get().params;
-        set({
-          rows: generateMeasurementRows(params),
-          lastGeneratedAt: new Date().toISOString(),
-        });
-      },
-      updateRowField(rowId, field, value) {
-        set((state) => ({
-          rows: state.rows.map((row) => (
-            row.id === rowId
-              ? { ...row, [field]: value }
-              : row
-          )),
-        }));
-      },
-    }));
-
-    /**
-     * vanilla store を React から購読するためのフック。
-     * React と Zustand の参照を揃えて、複数 React 混在によるフックエラーを避ける。
-     */
-    function useToolStore(selector = (state) => state) {
-      return React.useSyncExternalStore(
-        toolStore.subscribe,
-        () => selector(toolStore.getState()),
-        () => selector(toolStore.getState()),
-      );
-    }
-
-    /** シンプルなカード見出し */
-    function SectionTitle({ eyebrow, title, description }) {
-      return (
-        <div className="mb-3">
-          <p className="text-[11px] uppercase tracking-[0.28em] text-cyan-300/70">{eyebrow}</p>
-          <h2 className="mt-1 text-lg font-semibold text-white">{title}</h2>
-          {description ? (
-            <p className="mt-1 text-sm text-slate-400">{description}</p>
-          ) : null}
-        </div>
-      );
-    }
-
-    /** SVG 上のラベル */
-    function LabelBox({ x, y, text }) {
-      return (
-        <foreignObject x={x - 36} y={y - 20} width="72" height="40">
-          <div className="flex h-full w-full items-center justify-center">
-            <div className="rounded-full border border-white/20 bg-slate-900/90 px-3 py-1 text-xs font-semibold text-slate-100 shadow-lg">
-              {text}
-            </div>
-          </div>
-        </foreignObject>
-      );
-    }
-
-    /** SVG 上の双方向矢印 */
-    function DoubleArrow({ x1, x2, y }) {
-      return (
-        <line
-          x1={x1 + 6}
-          y1={y}
-          x2={x2 - 6}
-          y2={y}
-          stroke="#cbd5e1"
-          strokeWidth="1.5"
-          markerStart="url(#arrow)"
-          markerEnd="url(#arrow)"
-        />
-      );
-    }
-
-    /** SVG 上に埋め込む入力欄 */
-    function ParameterInput({ x, y, value, onChange, label, width = 72 }) {
-      return (
-        <foreignObject x={x - 52} y={y - 34} width="104" height="68" className="overflow-visible">
-          <div className="pointer-events-none flex h-full w-full items-center justify-center">
-            <div className="pointer-events-auto flex flex-col items-center rounded-xl border border-white/15 bg-slate-900/95 px-2 py-1 shadow-xl shadow-black/40">
-              <input
-                type="text"
-                value={value}
-                onChange={(event) => onChange(event.target.value)}
-                className="rounded-lg border border-white/10 bg-slate-950 px-2 py-1 text-center font-mono text-sm text-slate-100 outline-none transition focus:border-cyan-400"
-                style={{ width: `${width}px` }}
-              />
-              <span className="mt-1 text-[10px] font-semibold tracking-wide text-slate-400">{label}</span>
-            </div>
-          </div>
-        </foreignObject>
-      );
-    }
-
-    /** サマリ表の小部品（編集可能） */
-    function SummaryTable({ params, setParam }) {
-      const rows = [
-        { label: "E0", key: "e0", unit: " eV", description: "吸収端のエネルギー（eV）" },
-        { label: "Epre_min", key: "epreMin", unit: " eV", description: "XANESまえ領域のはじまり" },
-        { label: "Epre_max", key: "epreMax", unit: " eV", description: "XANESまえ領域のおわり（=XANES領域のはじまり）" },
-        { label: "XANES_k_end", key: "xanesKEnd", unit: " k", description: "XANES領域のおわり（=XANESあと領域のはじまり）" },
-        { label: "kmax", key: "kmax", unit: " k", description: "XANESあと領域のおわり" },
-        { label: "numstep", key: "numstep", unit: "", description: "XANES領域以外をどれくらいの分割数で測定するか？ XANESまえ領域は、XANESまえ領域すべてをnumstepで分割する。XANESあと領域は、各k1つ分をnumstepで分割する。" },
-        { label: "numstep_xanes", key: "numstepXanes", unit: "", description: "XANES領域をどれくらいの分割数で測定するか？" },
-        { label: "exposure", key: "exposureTime", unit: " s", description: "各測定にどれくらい時間をかけるか？（単位：秒）" },
-      ];
-
-      return (
-        <div className="overflow-hidden rounded-2xl border border-white/10 bg-slate-900/70">
-          <div className="divide-y divide-white/5">
-            {rows.map(({ label, key, unit, description }) => {
-              const inputId = `summary-${key}`;
-              return (
-                <div
-                  key={key}
-                  className="grid gap-2 px-3 py-2.5 sm:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] sm:items-center"
-                >
-                  <label htmlFor={inputId} className="cursor-help text-sm font-medium text-slate-300" title={description}>{label}</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      id={inputId}
-                      type="text"
-                      value={params[key]}
-                      onChange={(e) => setParam(key, e.target.value)}
-                      className="w-full min-w-0 rounded-lg border border-white/10 bg-slate-950/80 px-2 py-1.5 font-mono text-sm text-slate-100 outline-none transition focus:border-cyan-400"
-                    />
-                    {unit ? <span className="shrink-0 text-xs text-slate-400 sm:text-sm">{unit}</span> : null}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      );
-    }
-
-    /** 表のセル入力 */
-    function EditableCell({ value, onChange, mono = true }) {
-      return (
-        <input
-          type="text"
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          className={`w-full min-w-[76px] rounded-lg border border-white/10 bg-slate-950/80 px-2 py-1.5 text-xs text-slate-100 outline-none transition focus:border-cyan-400 sm:min-w-[90px] sm:text-sm ${mono ? "font-mono" : ""}`}
-        />
-      );
+      } catch (error) {
+        console.error("XAFS状態の保存に失敗しました", error);
+      }
     }
 
     /** CSV ダウンロードを行う */
     function downloadCsv(rows) {
       const csvLines = [
         CSV_HEADERS.join(","),
-        ...rows.map((row) => ([
-          row.initEnergy,
-          row.finalEnergy,
-          row.numberOfSteps,
-          row.exposureTime,
-          row.stepEnergy,
-          row.initK,
-          row.finalK,
-        ].map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(","))),
+        ...rows.map((row) => ROW_FIELDS
+          .map((field) => `"${String(row[field] ?? "").replaceAll('"', '""')}"`)
+          .join(",")),
       ];
 
       const now = new Date();
@@ -739,355 +1495,262 @@
       URL.revokeObjectURL(url);
     }
 
-    /** メインアプリ */
-    function App() {
-      const {
-        selectedEdgeKey,
-        edgeSearch,
-        params,
-        rows,
-        lastGeneratedAt,
-        setParam,
-        setEdgeSearch,
-        selectEdge,
-        regenerateRows,
-        updateRowField,
-      } = useToolStore();
+    /* =========================================================
+       画面の組み立て（初回のみ）
+       ========================================================= */
 
-      /** Zustand 上の値を永続化する */
-      useEffect(() => {
-        try {
-          window.localStorage.setItem(
-            STORAGE_KEY,
-            JSON.stringify({
-              selectedEdgeKey,
-              edgeSearch,
-              params,
-              rows,
-              lastGeneratedAt,
-            }),
-          );
-        } catch (error) {
-          console.error("XAFS状態の保存に失敗しました", error);
+    /** 吸収端のオートコンプリート候補を作る */
+    function buildEdgeDatalist() {
+      const fragment = document.createDocumentFragment();
+      for (const option of EDGE_OPTIONS) {
+        const node = document.createElement("option");
+        node.value = option.key;
+        node.textContent = option.description;
+        fragment.appendChild(node);
+      }
+      el["edge-list"].appendChild(fragment);
+    }
+
+    /** よく使う吸収端のボタンを作る */
+    function buildEdgeChips() {
+      const fragment = document.createDocumentFragment();
+      for (const key of FEATURED_EDGES) {
+        if (!EDGE_LOOKUP[key]) continue;
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "edge-chip";
+        button.dataset.edge = key;
+        button.textContent = key;
+        button.addEventListener("click", () => selectEdge(key));
+        fragment.appendChild(button);
+      }
+      el.edgeChips.appendChild(fragment);
+    }
+
+    /** パラメータ一覧表を作る */
+    function buildSummaryTable() {
+      const fragment = document.createDocumentFragment();
+      for (const { label, key, unit, description } of SUMMARY_FIELDS) {
+        const row = document.createElement("div");
+        row.className = "summary-row";
+
+        const labelNode = document.createElement("label");
+        labelNode.htmlFor = `summary-${key}`;
+        labelNode.title = description;
+        labelNode.textContent = label;
+
+        const field = document.createElement("div");
+        field.className = "summary-field";
+
+        const input = document.createElement("input");
+        input.type = "text";
+        input.id = `summary-${key}`;
+        input.dataset.param = key;
+        field.appendChild(input);
+
+        if (unit) {
+          const unitNode = document.createElement("span");
+          unitNode.className = "summary-unit";
+          unitNode.textContent = unit;
+          field.appendChild(unitNode);
         }
-      }, [selectedEdgeKey, edgeSearch, params, rows, lastGeneratedAt]);
 
-      const selectedEdge = EDGE_LOOKUP[selectedEdgeKey] || EDGE_LOOKUP["Cu-K"];
-      const featuredOptions = FEATURED_EDGES.map((key) => EDGE_LOOKUP[key]).filter(Boolean);
+        row.append(labelNode, field);
+        fragment.appendChild(row);
+      }
+      el.summary.appendChild(fragment);
+    }
 
-      const e0Number = parseMaybeNumber(params.e0) ?? 0;
+    /** 詳細調整表のヘッダーを作る */
+    function buildDetailHead() {
+      const fragment = document.createDocumentFragment();
+      for (const header of ["Region", ...CSV_HEADERS]) {
+        const th = document.createElement("th");
+        th.scope = "col";
+        th.textContent = header;
+        fragment.appendChild(th);
+      }
+      el.detailHead.appendChild(fragment);
+    }
+
+    /* =========================================================
+       描画
+       ========================================================= */
+
+    /** 選択中の吸収端まわりの表示を更新する */
+    function renderEdge() {
+      const selectedEdge = EDGE_LOOKUP[state.selectedEdgeKey] || EDGE_LOOKUP[DEFAULT_EDGE_KEY];
+      el.selectedEdgeKey.textContent = selectedEdge.key;
+      el.selectedEdgeEnergy.textContent = `${formatDecimal(selectedEdge.energy, 1)} eV`;
+      for (const chip of el.edgeChips.children) {
+        chip.classList.toggle("is-active", chip.dataset.edge === state.selectedEdgeKey);
+      }
+    }
+
+    /** パラメータから予測測定時間を更新する */
+    function renderEstimate() {
+      const params = state.params;
       const xanesKEnd = Math.max(0, parseMaybeNumber(params.xanesKEnd) ?? 0);
       const kmax = Math.max(xanesKEnd, parseMaybeNumber(params.kmax) ?? xanesKEnd);
       const numstep = parsePositiveNumber(params.numstep, 0);
       const numstepXanes = parsePositiveNumber(params.numstepXanes, 0);
       const exposureTime = parsePositiveNumber(params.exposureTime, 0);
 
-      /** Prompt の簡易見積もり式 */
-      const estimatedTime = (
-        (numstep + numstepXanes + numstep * Math.max(0, kmax - xanesKEnd))
-        * (exposureTime + 1.3)
-      );
+      const estimatedTime = (numstep + numstepXanes + numstep * Math.max(0, kmax - xanesKEnd))
+        * (exposureTime + 1.3);
 
-      /** 詳細表から再計算した合計時間 */
-      const detailedTotalTime = rows.reduce((accumulator, row) => {
+      el.estimateValue.textContent = formatDuration(estimatedTime);
+      el.estimateFormula.textContent =
+        `(${numstep} + ${numstepXanes} + ${numstep} × (${formatDecimal(kmax, 2)} - ${formatDecimal(xanesKEnd, 2)}))`
+        + ` × (${formatDecimal(exposureTime, 2)} + 1.3)`;
+    }
+
+    /** 行データから合計時間を更新する */
+    function renderTotals() {
+      const detailedTotalTime = state.rows.reduce((accumulator, row) => {
         const rowSteps = parsePositiveNumber(row.numberOfSteps, 0);
         const rowExposure = parsePositiveNumber(row.exposureTime, 0);
         return accumulator + rowSteps * (rowExposure + 1.3);
       }, 0);
+      const exafsRowCount = state.rows.filter((row) => row.region === "EXAFS").length;
 
-      const exafsRowCount = rows.filter((row) => row.region === "EXAFS").length;
-
-      /** 候補が入力と一致したときは即選択する */
-      function handleEdgeSearchChange(value) {
-        setEdgeSearch(value);
-        const normalized = value.trim().toLowerCase();
-        const exactMatch = EDGE_OPTIONS.find((option) => (
-          option.key.toLowerCase() === normalized
-          || option.description.toLowerCase() === normalized
-          || option.label.toLowerCase() === normalized
-        ));
-        if (exactMatch) {
-          selectEdge(exactMatch.key);
-        }
-      }
-
-      return (
-        <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.18),_transparent_32%),linear-gradient(180deg,_#020617_0%,_#020617_100%)]">
-          <div className="mx-auto max-w-7xl px-3 py-3 sm:px-4">
-            <header className="mb-3 rounded-3xl border border-white/10 bg-slate-900/80 p-4 shadow-2xl shadow-black/30 backdrop-blur">
-              <p className="text-xs uppercase tracking-[0.4em] text-cyan-300/70">XAFS Condition Maker</p>
-              <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-                <div>
-                  <h1 className="text-2xl font-bold text-white">XAFS測定条件メーカー</h1>
-                  <p className="mt-1 text-sm text-slate-400">
-                    グラフィカルに測定条件を作れます。
-                  </p>
-                </div>
-                <div className="w-full rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm text-cyan-100 md:w-auto">
-                  <div>選択中の吸収端: <span className="font-semibold">{selectedEdge.key}</span></div>
-                  <div className="font-mono text-base">{formatDecimal(selectedEdge.energy, 1)} eV</div>
-                </div>
-              </div>
-            </header>
-
-            <main className="grid min-w-0 gap-3 lg:grid-cols-[1.45fr_0.50fr]">
-              <section className="min-w-0 rounded-3xl border border-white/10 bg-slate-900/75 p-4 shadow-2xl shadow-black/30 backdrop-blur">
-                <SectionTitle
-                  eyebrow="Visual Editor"
-                  title="グラフィカル入力"
-                  description="測定範囲の主要パラメータを視覚的に調整します。"
-                />
-                <div className="min-w-0 rounded-2xl border border-white/10 bg-slate-950/60 p-3">
-                  <div className="w-full max-w-full overflow-x-auto">
-                    <svg viewBox="0 0 850 560" className="h-auto w-full min-w-[560px] rounded-2xl sm:min-w-[620px] md:min-w-[700px] lg:min-w-[820px]">
-                    <defs>
-                      <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                        <path d="M 0 2 L 10 5 L 0 8 z" fill="#cbd5e1" />
-                      </marker>
-                    </defs>
-
-                    <rect x="120" y="48" width="145" height="395" rx="16" fill="#38bdf8" fillOpacity="0.06" />
-                    <rect x="265" y="48" width="215" height="395" rx="16" fill="#f43f5e" fillOpacity="0.06" />
-                    <rect x="480" y="48" width="300" height="395" rx="16" fill="#22c55e" fillOpacity="0.06" />
-
-                    <text x="190" y="32" textAnchor="middle" fill="#67e8f9" fontWeight="700" fontSize="14">Pre-edge</text>
-                    <text x="372" y="32" textAnchor="middle" fill="#fda4af" fontWeight="700" fontSize="14">XANES / Edge</text>
-                    <text x="630" y="32" textAnchor="middle" fill="#86efac" fontWeight="700" fontSize="14">EXAFS</text>
-
-                    <line x1="120" y1="48" x2="120" y2="510" stroke="#475569" strokeWidth="1" />
-                    <line x1="265" y1="48" x2="265" y2="450" stroke="#64748b" strokeDasharray="5 5" strokeWidth="1.5" />
-                    <line x1="360" y1="48" x2="360" y2="510" stroke="#fbbf24" strokeDasharray="6 4" strokeWidth="2" />
-                    <line x1="480" y1="48" x2="480" y2="450" stroke="#64748b" strokeDasharray="5 5" strokeWidth="1.5" />
-                    <line x1="780" y1="48" x2="780" y2="450" stroke="#64748b" strokeWidth="1.5" />
-                    <line x1="80" y1="380" x2="810" y2="380" stroke="#1e293b" strokeWidth="1" />
-
-                    <path
-                      d="M 120 374 Q 190 380 265 370"
-                      fill="none"
-                      stroke="#38bdf8"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                    />
-                    <path
-                      d="M 265 370 C 330 360, 338 150, 380 145 C 430 145, 445 250, 480 260"
-                      fill="none"
-                      stroke="#f43f5e"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                    />
-                    <path
-                      d="M 480 260
-                        L 500 246
-                        L 520 274
-                        L 540 248
-                        L 560 282
-                        L 580 252
-                        L 600 286
-                        L 620 256
-                        L 640 290
-                        L 660 260
-                        L 680 292
-                        L 700 264
-                        L 720 294
-                        L 740 268
-                        L 760 296
-                        L 780 272"
-                      fill="none"
-                      stroke="#22c55e"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                    />
-
-                    <LabelBox x={70} y={70} text="k" />
-                    <LabelBox x={70} y={435} text="eV" />
-                    <LabelBox x={360} y={70} text="0" />
-
-                    <DoubleArrow x1={120} x2={360} y={508} />
-                    <ParameterInput
-                      x={240}
-                      y={505}
-                      value={params.epreMin}
-                      onChange={(value) => setParam("epreMin", value)}
-                      label="Epre_min"
-                    />
-
-                    <DoubleArrow x1={265} x2={360} y={448} />
-                    <ParameterInput
-                      x={312}
-                      y={446}
-                      value={params.epreMax}
-                      onChange={(value) => setParam("epreMax", value)}
-                      label="Epre_max"
-                    />
-
-                    <ParameterInput
-                      x={360}
-                      y={285}
-                      value={params.e0}
-                      onChange={(value) => setParam("e0", value)}
-                      label="E0 (eV)"
-                      width={82}
-                    />
-
-                    <DoubleArrow x1={360} x2={480} y={108} />
-                    <ParameterInput
-                      x={480}
-                      y={82}
-                      value={params.xanesKEnd}
-                      onChange={(value) => setParam("xanesKEnd", value)}
-                      label="XANES_k_end"
-                    />
-
-                    <ParameterInput
-                      x={780}
-                      y={82}
-                      value={params.kmax}
-                      onChange={(value) => setParam("kmax", value)}
-                      label="kmax"
-                    />
-                    </svg>
-                  </div>
-                  <p className="mt-2 text-xs text-slate-500 sm:hidden">表示が狭い場合は横スクロールして編集できます。</p>
-                </div>
-              </section>
-
-              <section className="min-w-0 rounded-3xl border border-white/10 bg-slate-900/75 p-4 shadow-2xl shadow-black/30 backdrop-blur">
-                <SectionTitle
-                  eyebrow="Inputs"
-                  title="吸収端と測定パラメータ"
-                  description="吸収端などの測定パラメータを入力します。"
-                />
-
-                <div className="space-y-4">
-                  <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-3">
-                    <label className="mb-2 block text-sm font-medium text-slate-300">吸収端を検索</label>
-                    <input
-                      list="edge-list"
-                      value={edgeSearch}
-                      onChange={(event) => handleEdgeSearchChange(event.target.value)}
-                      placeholder="例: Cu-K, Fe-K, Pt-L3"
-                      className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-400"
-                    />
-                    <datalist id="edge-list">
-                      {EDGE_OPTIONS.map((option) => (
-                        <option key={option.key} value={option.key}>{option.description}</option>
-                      ))}
-                    </datalist>
-
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {featuredOptions.map((option) => (
-                        <button
-                          key={option.key}
-                          type="button"
-                          onClick={() => selectEdge(option.key)}
-                          className={`rounded-full border px-3 py-1 text-xs transition ${
-                            option.key === selectedEdgeKey
-                              ? "border-cyan-300 bg-cyan-300/20 text-cyan-100"
-                              : "border-white/10 bg-white/5 text-slate-300 hover:border-cyan-300/50 hover:text-white"
-                          }`}
-                        >
-                          {option.key}
-                        </button>
-                      ))}
-                    </div>
-
-                  </div>
-
-                  <SummaryTable params={params} setParam={setParam} />
-
-                  <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4">
-                    <p className="text-xs uppercase tracking-[0.28em] text-cyan-200/70">予測測定時間</p>
-                    <p className="mt-2 text-2xl font-semibold text-cyan-50">{formatDuration(estimatedTime)}</p>
-                    <p className="mt-2 text-xs text-cyan-100/70">
-                      ({numstep} + {numstepXanes} + {numstep} × ({formatDecimal(kmax, 2)} - {formatDecimal(xanesKEnd, 2)})) × ({formatDecimal(exposureTime, 2)} + 1.3)
-                    </p>
-                  </div>
-
-                </div>
-              </section>
-            </main>
-
-            <section className="mt-3 min-w-0 rounded-3xl border border-white/10 bg-slate-900/75 p-4 shadow-2xl shadow-black/30 backdrop-blur">
-              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <SectionTitle
-                    eyebrow="Detail Table"
-                    title="詳細調整表"
-                    description="生成後は各セルを直接編集できます。予測測定時間は行データから再計算されます。"
-                  />
-                </div>
-                <div className="flex w-full flex-wrap items-stretch gap-3 sm:w-auto sm:items-center">
-                  <div className="w-full rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 sm:w-auto">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-200/70">合計時間</p>
-                    <p className="font-semibold text-emerald-50">{formatDuration(detailedTotalTime)}</p>
-                    <p className="text-[10px] text-emerald-100/70">{rows.length} 行 / EXAFS {exafsRowCount} 行</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={regenerateRows}
-                    className="w-full rounded-xl bg-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 sm:w-auto"
-                  >
-                    現在のパラメータから測定条件表を更新する
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => downloadCsv(rows)}
-                    className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-medium text-slate-100 transition hover:border-cyan-300/50 hover:bg-cyan-300/10 sm:w-auto"
-                  >
-                    CSVを書き出す
-                  </button>
-                </div>
-              </div>
-              <div className="max-w-full overflow-x-auto rounded-2xl border border-white/10 bg-slate-950/50">
-                <table className="w-max min-w-full border-separate border-spacing-0">
-                  <thead className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur">
-                    <tr>
-                      <th className="border-b border-white/10 px-3 py-3 text-left text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Region</th>
-                      {CSV_HEADERS.map((header) => (
-                        <th key={header} className="border-b border-white/10 px-3 py-3 text-left text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">
-                          {header}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((row) => (
-                      <tr key={row.id} className="align-top">
-                        <td className="border-b border-white/5 px-3 py-3 text-sm font-medium text-slate-300">{row.region}</td>
-                        <td className="border-b border-white/5 px-3 py-3">
-                          <EditableCell value={row.initEnergy} onChange={(value) => updateRowField(row.id, "initEnergy", value)} />
-                        </td>
-                        <td className="border-b border-white/5 px-3 py-3">
-                          <EditableCell value={row.finalEnergy} onChange={(value) => updateRowField(row.id, "finalEnergy", value)} />
-                        </td>
-                        <td className="border-b border-white/5 px-3 py-3">
-                          <EditableCell value={row.numberOfSteps} onChange={(value) => updateRowField(row.id, "numberOfSteps", value)} />
-                        </td>
-                        <td className="border-b border-white/5 px-3 py-3">
-                          <EditableCell value={row.exposureTime} onChange={(value) => updateRowField(row.id, "exposureTime", value)} />
-                        </td>
-                        <td className="border-b border-white/5 px-3 py-3">
-                          <EditableCell value={row.stepEnergy} onChange={(value) => updateRowField(row.id, "stepEnergy", value)} />
-                        </td>
-                        <td className="border-b border-white/5 px-3 py-3">
-                          <EditableCell value={row.initK} onChange={(value) => updateRowField(row.id, "initK", value)} />
-                        </td>
-                        <td className="border-b border-white/5 px-3 py-3">
-                          <EditableCell value={row.finalK} onChange={(value) => updateRowField(row.id, "finalK", value)} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          </div>
-        </div>
-      );
+      el.totalValue.textContent = formatDuration(detailedTotalTime);
+      el.totalNote.textContent = `${state.rows.length} 行 / EXAFS ${exafsRowCount} 行`;
     }
 
-    createRoot(document.getElementById("root")).render(<App />);
+    /** 詳細調整表の中身を組み直す */
+    function renderDetailTable() {
+      const fragment = document.createDocumentFragment();
+      for (const row of state.rows) {
+        const tr = document.createElement("tr");
+
+        const regionCell = document.createElement("td");
+        regionCell.className = "region-cell";
+        regionCell.textContent = row.region ?? "";
+        tr.appendChild(regionCell);
+
+        for (const field of ROW_FIELDS) {
+          const td = document.createElement("td");
+          const input = document.createElement("input");
+          input.type = "text";
+          input.className = "cell-input";
+          input.value = row[field] ?? "";
+          input.dataset.rowId = row.id;
+          input.dataset.field = field;
+          input.setAttribute("aria-label", `${row.region} ${field}`);
+          td.appendChild(input);
+          tr.appendChild(td);
+        }
+
+        fragment.appendChild(tr);
+      }
+
+      el.detailBody.replaceChildren(fragment);
+      renderTotals();
+    }
+
+    /* =========================================================
+       操作
+       ========================================================= */
+
+    /**
+     * パラメータの値を反映する。
+     * 入力中の欄の値は書き換えず、もう一方の欄だけ同期させる。
+     */
+    function setParam(key, value, sourceInput) {
+      state.params[key] = value;
+      for (const input of paramInputs[key] || []) {
+        if (input !== sourceInput && input.value !== value) {
+          input.value = value;
+        }
+      }
+      renderEstimate();
+      saveState();
+    }
+
+    /** 吸収端を選び、E0 に反映する */
+    function selectEdge(edgeKey) {
+      const selected = EDGE_LOOKUP[edgeKey];
+      if (!selected) {
+        return;
+      }
+      state.selectedEdgeKey = edgeKey;
+      state.edgeSearch = edgeKey;
+      el.edgeSearch.value = edgeKey;
+      setParam("e0", formatDecimal(selected.energy, 1));
+      renderEdge();
+      saveState();
+    }
+
+    /** 候補が入力と一致したときは即選択する */
+    function handleEdgeSearchChange(value) {
+      state.edgeSearch = value;
+      const normalized = value.trim().toLowerCase();
+      const exactMatch = EDGE_OPTIONS.find((option) => (
+        option.key.toLowerCase() === normalized
+        || option.description.toLowerCase() === normalized
+        || option.label.toLowerCase() === normalized
+      ));
+      if (exactMatch) {
+        selectEdge(exactMatch.key);
+      } else {
+        saveState();
+      }
+    }
+
+    /** 現在のパラメータから測定条件表を作り直す */
+    function regenerateRows() {
+      state.rows = generateMeasurementRows(state.params);
+      state.lastGeneratedAt = new Date().toISOString();
+      renderDetailTable();
+      saveState();
+    }
+
+    /** 詳細調整表のセル編集を行データへ書き戻す */
+    function handleCellInput(event) {
+      const input = event.target;
+      if (!input.dataset || !input.dataset.rowId) {
+        return;
+      }
+      const row = state.rows.find((item) => item.id === input.dataset.rowId);
+      if (!row) {
+        return;
+      }
+      row[input.dataset.field] = input.value;
+      renderTotals();
+      saveState();
+    }
+
+    /** 初期化：DOM を組み立て、状態を反映し、イベントを結線する */
+    function init() {
+      buildEdgeDatalist();
+      buildEdgeChips();
+      buildSummaryTable();
+      buildDetailHead();
+
+      // SVG 側と一覧表側、同じパラメータの入力欄をまとめて扱えるようにする
+      for (const input of document.querySelectorAll("[data-param]")) {
+        const key = input.dataset.param;
+        (paramInputs[key] ||= []).push(input);
+        input.value = state.params[key] ?? "";
+        input.addEventListener("input", (event) => setParam(key, event.target.value, event.target));
+      }
+
+      el.edgeSearch.value = state.edgeSearch;
+      el.edgeSearch.addEventListener("input", (event) => handleEdgeSearchChange(event.target.value));
+
+      el.regenerate.addEventListener("click", regenerateRows);
+      el.exportCsv.addEventListener("click", () => downloadCsv(state.rows));
+      el.detailBody.addEventListener("input", handleCellInput);
+
+      renderEdge();
+      renderEstimate();
+      renderDetailTable();
+    }
+
+    document.addEventListener("DOMContentLoaded", init);
   </script>
 </body>
 
 </html>
+
